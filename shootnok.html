@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Archery Game</title>
+<style>
+* { box-sizing: border-box; user-select:none; -ms-user-select:none; -webkit-user-select:none;}
+body { margin:0; font-family:sans-serif; background:#eee; text-align:center; overflow:hidden;}
+canvas { background-image: url('img/forest.png'); background-size: cover; background-position:center; display:block; margin:auto; border:2px solid #333; }
+#game-container { position:relative; width:800px; max-width:100%; margin:auto; }
+#score { font-size:16px; margin:5px; }
+button { margin-top:5px; padding:10px 20px; font-size:16px; cursor:pointer;}
+#pauseBtn { position:absolute; top:10px; left:10px; z-index:10; padding:10px 20px; font-size:16px; }
+.controls-container { position: fixed; bottom: 20px; width: 100%; display:flex; justify-content:space-between; align-items:center; padding:0 5%; pointer-events:none; }
+.d-pad { width:120px; height:120px; position:relative; pointer-events:auto; }
+.d-pad .arrow { position:absolute; width:40px; height:40px; background-color:rgba(0,0,0,0.5); color:white; display:flex; justify-content:center; align-items:center; font-size:20px; border:2px solid rgba(255,255,255,0.5);}
+#arrow-up { top:0; left:40px; border-radius:5px 5px 0 0;}
+#arrow-down { bottom:0; left:40px; border-radius:0 0 5px 5px;}
+#arrow-left { top:40px; left:0; border-radius:5px 0 0 5px;}
+#arrow-right { top:40px; right:0; border-radius:0 5px 5px 0;}
+.shoot-button { width:80px; height:80px; background-color: rgba(200,50,50,0.7); border-radius:50%; display:flex; justify-content:center; align-items:center; font-size:1.2em; color:white; font-weight:bold; pointer-events:auto; border:2px solid rgba(255,255,255,0.5); }
+footer { margin-top:30px; padding:20px; background:#111; color:white; }
+.star { font-size:30px; cursor:pointer; color:gray; }
+.star.selected { color:gold; }
+</style>
+</head>
+<body>
+
+<h1>Archery Game</h1>
+<div id="game-container">
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<p id="score">Score: 0 | Level: 1 | High Score: 0</p>
+<button id="restartBtn" style="display:none">Play Again</button>
+<button id="pauseBtn">Pause</button>
+<a href="index.html"><button>Home</button></a>
+
+<div class="controls-container">
+  <div class="d-pad">
+    <div id="arrow-up" class="arrow">▲</div>
+    <div id="arrow-down" class="arrow">▼</div>
+    <div id="arrow-left" class="arrow">◀</div>
+    <div id="arrow-right" class="arrow">▶</div>
+  </div>
+  <div id="shoot-btn" class="shoot-button">ยิง</div>
+</div>
+</div>
+
+<!-- Audio -->
+<audio id="bgMusic" src="sound/bgnok.mp3" loop></audio>
+<audio id="shootSound" src="sound/shoot.mp3"></audio>
+<audio id="hitSound" src="sound/hit.mp3"></audio>
+<audio id="pauseSound" src="sound/pause.mp3"></audio>
+<audio id="resumeSound" src="sound/resume.mp3"></audio>
+<audio id="scremSound" src="sound/scream.mp3"></audio>
+<audio id="blinkSound" src="sound/blink.mp3"></audio>
+
+<!-- ส่วนท้าย Footer -->
+  <footer style="margin-top:30px; padding:20px; background:#111; color:white;">
+    <p id="visitorCount"></p>
+
+    <div id="rating" style="margin-top:10px;">
+      
+      <span class="star" data-value="1">★</span>
+      <span class="star" data-value="2">★</span>
+      <span class="star" data-value="3">★</span>
+      <span class="star" data-value="4">★</span>
+      <span class="star" data-value="5">★</span>
+      <p id="ratingText" style="margin-top:5px; color:gold;"></p>
+    </div>
+  </footer>
+
+  <style>
+    .star {
+      font-size: 30px;
+      cursor: pointer;
+      color: gray;
+    }
+    .star.selected {
+      color: gold;
+    }
+  </style>
+
+  <script>
+    // ---- Visitor Counter ----
+    let count = localStorage.getItem("visitorCount") || 0;
+    count++;
+    localStorage.setItem("visitorCount", count);
+    document.getElementById("visitorCount").textContent = "Visitors: " + count;
+
+    // ---- Star Rating ----
+    const stars = document.querySelectorAll(".star");
+    const ratingText = document.getElementById("ratingText");
+    let savedRating = localStorage.getItem("gameRating") || 0;
+
+    function highlightStars(rating) {
+      stars.forEach(star => {
+        star.classList.remove("selected");
+        if (star.dataset.value <= rating) {
+          star.classList.add("selected");
+        }
+      });
+      if (rating > 0) ratingText.textContent = "Rate this Game: " + rating + " Stars";
+      else ratingText.textContent = "";
+    }
+
+    stars.forEach(star => {
+      star.addEventListener("click", () => {
+        let rating = star.dataset.value;
+        localStorage.setItem("gameRating", rating);
+        highlightStars(rating);
+      });
+    });
+
+    // โหลดค่าที่เคยให้ไว้
+    if (savedRating > 0) highlightStars(savedRating);
+  </script>
+
+<script>
+//--------------------- Game Variables ---------------------
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const restartBtn = document.getElementById("restartBtn");
+const scoreText = document.getElementById("score");
+
+const shootSound = document.getElementById("shootSound");
+const hitSound = document.getElementById("hitSound");
+const bgMusic = document.getElementById("bgMusic");
+const pauseSound = document.getElementById("pauseSound");
+const resumeSound = document.getElementById("resumeSound");
+const pauseBtn = document.getElementById("pauseBtn");
+const scremSound = document.getElementById("scremSound"); // เสียงชน
+const blinkSound = new Audio("./sound/blink.mp3");
+
+const controls = {
+  up: document.getElementById('arrow-up'),
+  down: document.getElementById('arrow-down'),
+  left: document.getElementById('arrow-left'),
+  right: document.getElementById('arrow-right'),
+  shoot: document.getElementById('shoot-btn')
+};
+
+let arrows = [], birds = [], explosions = [], powerUps = [];
+let score = 0, lives = 3, gameOver = false, level = 1;
+let highScore = localStorage.getItem("highScore") || 0;
+let playerMove = { up:false, down:false, left:false, right:false };
+let isPaused = false;
+let animationId;
+let nextArrowIsGolden = false;
+let glowTime = 0;
+let arrowSpeed = 8;
+let tripleArrow = false;
+let playerShield = false;
+
+// Active power UI
+let activePowerUI = { fast:0, triple:0, shield:0 };
+
+// Power-up types
+const powerTypes = { FAST_ARROW:"fast", TRIPLE_ARROW:"triple", SHIELD:"shield" };
+
+// Player object
+const player = { x:50, y:canvas.height/2, width:45, height:80, speed:5 };
+
+// Images
+const birdImg = new Image(); birdImg.src = "img/bird.png";
+const goldenBirdImg = new Image(); goldenBirdImg.src = "img/golden_bird.png";
+const bossImg = new Image(); bossImg.src = "img/boss_bird.png";
+const playerImg = new Image(); playerImg.src = "img/archer.png";
+const arrowImg = new Image(); arrowImg.src = "img/arrow.png";
+const shieldImg = new Image(); shieldImg.src = "img/shieldb.png";
+
+// Power-up images
+const fastImg = new Image(); fastImg.src="img/fast.png";
+const tripleImg = new Image(); tripleImg.src="img/threearrow.png";
+const shieldPowerImg = new Image(); shieldPowerImg.src="img/shieldb.png";
+
+// Explosion
+const birdExoImg = new Image(); birdExoImg.src = "img/birdexo.png";
+
+//--------------------- Explosion Class ---------------------
+class Explosion {
+  constructor(x,y,color="orange"){
+    this.particles = [];
+    for(let i=0;i<15;i++){
+      this.particles.push({
+        x,y,
+        radius:Math.random()*3+2,
+        color,
+        speedX:(Math.random()-0.5)*6,
+        speedY:(Math.random()-0.5)*6,
+        alpha:1
+      });
+    }
+  }
+  update(){ 
+    this.particles.forEach(p=>{ p.x+=p.speedX; p.y+=p.speedY; p.alpha-=0.03; });
+    this.particles = this.particles.filter(p=>p.alpha>0);
+  }
+  draw(){ 
+    this.particles.forEach(p=>{
+      ctx.globalAlpha = p.alpha;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.radius,0,Math.PI*2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+  }
+}
+
+//--------------------- Game Functions ---------------------
+function resetGame(){
+  arrows=[]; birds=[]; explosions=[]; powerUps=[];
+  score=0; lives=3; level=1; gameOver=false; isPaused=false; nextArrowIsGolden=false;
+  arrowSpeed=8; tripleArrow=false; playerShield=false;
+  activePowerUI = { fast:0, triple:0, shield:0 };
+  restartBtn.style.display="none"; player.x=50; player.y=canvas.height/2;
+  scoreText.textContent=`Score: 0 | Level: 1 | High Score: ${highScore}`;
+  bgMusic.currentTime=0; bgMusic.play().catch(()=>{});
+  spawnBird(); spawnPowerUp();
+  cancelAnimationFrame(animationId);
+  gameLoop();
+}
+
+//--------------------- Spawn Birds ---------------------
+function spawnBird(){
+  if(gameOver) return;
+  const y=Math.random()*(canvas.height-60);
+  const baseSpeed = 1+Math.random()*1.5+score*0.05;
+  const speed = Math.min(baseSpeed,10);
+  const isBoss = Math.random() < 0.3; // เพิ่มโอกาสบอสเกิด
+  if(isBoss && birds.filter(b=>b.isBoss).length===0){
+    birds.push({ x:canvas.width, y, startY:y, width:120, height:100, speed:2, amplitude:40, frequency:0.02, time:0, isBoss:true, hp:5 });
+  } else {
+    const isGolden = Math.random()<0.1;
+    birds.push({ x:canvas.width, y, startY:y, width:40, height:30, speed, amplitude:20+Math.random()*20, frequency:0.02+Math.random()*0.03, time:0, isGolden, isBoss:false });
+  }
+  setTimeout(spawnBird, 1500);
+}
+
+//--------------------- Spawn Power-Ups ---------------------
+function spawnPowerUp(){
+  if(gameOver) return;
+  const typeKeys = Object.keys(powerTypes);
+  const type = powerTypes[typeKeys[Math.floor(Math.random()*typeKeys.length)]];
+  const x = canvas.width; 
+  const y = Math.random()*(canvas.height-40);
+  powerUps.push({
+    x,y,width:40,height:40,type,speed:2,
+    img: type===powerTypes.FAST_ARROW?fastImg:type===powerTypes.TRIPLE_ARROW?tripleImg:shieldPowerImg
+  });
+  setTimeout(spawnPowerUp, 10000);
+}
+
+//--------------------- Input ---------------------
+document.addEventListener("keydown", e=>{
+  if(gameOver || isPaused) return;
+  if(e.key==="ArrowUp") playerMove.up=true;
+  if(e.key==="ArrowDown") playerMove.down=true;
+  if(e.key==="ArrowLeft") playerMove.left=true;
+  if(e.key==="ArrowRight") playerMove.right=true;
+  if(e.key==='s'||e.key===' ') shoot();
+});
+document.addEventListener("keyup", e=>{
+  if(e.key==="ArrowUp") playerMove.up=false;
+  if(e.key==="ArrowDown") playerMove.down=false;
+  if(e.key==="ArrowLeft") playerMove.left=false;
+  if(e.key==="ArrowRight") playerMove.right=false;
+});
+
+function addControlListeners(element,direction){
+  element.addEventListener('mousedown',()=>playerMove[direction]=true);
+  element.addEventListener('touchstart',e=>{ e.preventDefault(); playerMove[direction]=true;});
+  element.addEventListener('mouseup',()=>playerMove[direction]=false);
+  element.addEventListener('mouseleave',()=>playerMove[direction]=false);
+  element.addEventListener('touchend',()=>playerMove[direction]=false);
+  element.addEventListener('touchcancel',()=>playerMove[direction]=false);
+}
+addControlListeners(controls.up,'up');
+addControlListeners(controls.down,'down');
+addControlListeners(controls.left,'left');
+addControlListeners(controls.right,'right');
+controls.shoot.addEventListener('click',shoot);
+controls.shoot.addEventListener('touchstart',e=>{ e.preventDefault(); shoot(); });
+
+restartBtn.addEventListener("click",resetGame);
+
+pauseBtn.addEventListener("click",()=>{
+  if(!isPaused){ 
+    isPaused=true; 
+    pauseSound.play(); 
+    pauseBtn.textContent="Resume"; 
+    bgMusic.pause();
+    cancelAnimationFrame(animationId);
+  } else { 
+    isPaused=false; 
+    resumeSound.play(); 
+    pauseBtn.textContent="Pause"; 
+    bgMusic.play(); 
+    gameLoop();
+  }
+});
+
+function shoot(){
+  const shots = tripleArrow ? [-10,0,10] : [0];
+  shots.forEach(offset=>{
+    arrows.push({
+      x: player.x + player.width,
+      y: player.y + player.height/2 + offset,
+      speed: arrowSpeed,
+      angle: 0,
+      isGolden: nextArrowIsGolden
+    });
+  });
+  shootSound.currentTime = 0;
+  shootSound.play();
+  nextArrowIsGolden = false; 
+}
+
+function updatePlayerPosition(){
+  if(playerMove.up) player.y-=player.speed;
+  if(playerMove.down) player.y+=player.speed;
+  if(playerMove.left) player.x-=player.speed;
+  if(playerMove.right) player.x+=player.speed;
+  if(player.x<0) player.x=0;
+  if(player.x+player.width>canvas.width) player.x=canvas.width-player.width;
+  if(player.y<0) player.y=0;
+  if(player.y+player.height>canvas.height) player.y=canvas.height-player.height;
+}
+
+//--------------------- Update ---------------------
+function update(){
+  updatePlayerPosition();
+
+  // Arrows
+  for(let i=arrows.length-1;i>=0;i--){ arrows[i].x += arrows[i].speed; if(arrows[i].x>canvas.width) arrows.splice(i,1); }
+
+  // Birds
+  for(let i=birds.length-1;i>=0;i--){
+    let bird = birds[i];
+    bird.x -= bird.speed;
+    bird.time++;
+    bird.y = bird.startY + Math.sin(bird.time*bird.frequency)*bird.amplitude;
+
+    // Collision bird vs player
+    if(player.x < bird.x + bird.width && player.x + player.width > bird.x &&
+       player.y < bird.y + bird.height && player.y + player.height > bird.y){
+      
+      if(!playerShield) { lives--; if(lives<=0){ gameOver=true; restartBtn.style.display="inline-block"; bgMusic.pause(); } }
+      scremSound.currentTime=0; scremSound.play();
+      explosions.push({ img: birdExoImg, x:player.x-20, y:player.y-20, width:player.width+40, height:player.height+40, alpha:1 });
+      birds.splice(i,1); continue;
+    }
+  }
+
+  // Arrows vs birds
+  for(let ai=arrows.length-1; ai>=0; ai--){
+    let arrow = arrows[ai];
+    for(let bi=birds.length-1; bi>=0; bi--){
+      let bird = birds[bi];
+      if(arrow.x < bird.x+bird.width && arrow.x+25>bird.x && arrow.y<bird.y+bird.height && arrow.y+5>bird.y){
+        arrows.splice(ai,1);
+        if(bird.isBoss){
+          bird.hp -= arrow.isGolden?2:1;
+          explosions.push(new Explosion(bird.x+bird.width/2,bird.y+bird.height/2,"red"));
+          if(bird.hp<=0){ birds.splice(bi,1); score += arrow.isGolden?20:10; }
+        } else {
+          explosions.push(new Explosion(bird.x+bird.width/2,bird.y+bird.height/2,bird.isGolden?"gold":(arrow.isGolden?"yellow":"orange")));
+          birds.splice(bi,1); score += bird.isGolden?5:(arrow.isGolden?2:1);
+          if(bird.isGolden) nextArrowIsGolden = true;
+        }
+        level=Math.floor(score/10)+1;
+        if(score>highScore){ highScore=score; localStorage.setItem("highScore",highScore);}
+        scoreText.textContent=`Score: ${score} | Level: ${level} | High Score: ${highScore}`;
+        hitSound.currentTime=0; hitSound.play();
+        break;
+      }
+    }
+  }
+
+  // Power-Ups
+  for(let i=powerUps.length-1;i>=0;i--){
+    let pu = powerUps[i];
+    pu.x -= pu.speed;
+    if(pu.x+pu.width<0){ powerUps.splice(i,1); continue; }
+
+    if(player.x < pu.x+pu.width && player.x+player.width>pu.x && player.y < pu.y+pu.height && player.y+player.height>pu.y){
+      powerUps.splice(i,1);
+      blinkSound.currentTime=0; blinkSound.play();
+      if(pu.type===powerTypes.FAST_ARROW){ arrowSpeed=12; activePowerUI.fast=5; setTimeout(()=>{arrowSpeed=8; activePowerUI.fast=0;},5000);}
+      if(pu.type===powerTypes.TRIPLE_ARROW){ tripleArrow=true; activePowerUI.triple=5; setTimeout(()=>{tripleArrow=false; activePowerUI.triple=0;},5000);}
+      if(pu.type===powerTypes.SHIELD){ playerShield=true; activePowerUI.shield=5; setTimeout(()=>{playerShield=false; activePowerUI.shield=0;},5000);}
+    }
+  }
+
+  // Explosions
+  explosions.forEach(ex=>{ if(ex instanceof Explosion) ex.update(); });
+
+  // Decrement active power timers
+  Object.keys(activePowerUI).forEach(key=>{ if(activePowerUI[key]>0) activePowerUI[key]-=1/60; });
+}
+
+//--------------------- Draw ---------------------
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Player
+  ctx.drawImage(playerImg,player.x,player.y,player.width,player.height);
+  if(playerShield) ctx.drawImage(shieldImg,player.x-5,player.y-5,player.width+10,player.height+10);
+
+  glowTime += 0.1;
+
+  // Arrows
+  arrows.forEach(arrow=>{
+    ctx.save(); ctx.translate(arrow.x,arrow.y);
+    if(arrow.isGolden){ let glow=20+10*Math.sin(glowTime*5); ctx.shadowBlur=glow; ctx.shadowColor="gold"; }
+    else{ ctx.shadowBlur=15; ctx.shadowColor="red"; }
+    ctx.drawImage(arrowImg,-12.5,-5,25,10);
+    ctx.restore();
+  });
+
+  // Birds
+  birds.forEach(bird=>{
+    if(bird.isBoss){
+      ctx.drawImage(bossImg,bird.x,bird.y,bird.width,bird.height);
+      ctx.fillStyle="gray"; ctx.fillRect(bird.x,bird.y-10,bird.width,6);
+      ctx.fillStyle="lime"; ctx.fillRect(bird.x,bird.y-10,(bird.hp/5)*bird.width,6);
+      ctx.strokeStyle="black"; ctx.strokeRect(bird.x,bird.y-10,bird.width,6);
+    } else if(bird.isGolden) ctx.drawImage(goldenBirdImg,bird.x,bird.y,bird.width,bird.height);
+    else ctx.drawImage(birdImg,bird.x,bird.y,bird.width,bird.height);
+  });
+
+  // Power-Ups
+  powerUps.forEach(pu=>{ ctx.drawImage(pu.img, pu.x, pu.y, pu.width, pu.height); });
+
+  // Explosions
+  explosions.forEach((ex,index)=>{
+    if(ex instanceof Explosion) ex.draw();
+    else{
+      ctx.globalAlpha=ex.alpha;
+      ctx.drawImage(ex.img, ex.x, ex.y, ex.width, ex.height);
+      ctx.globalAlpha=1;
+      ex.alpha-=0.05; if(ex.alpha<=0) explosions.splice(index,1);
+    }
+  });
+
+  // Life
+  ctx.fillStyle="white"; ctx.strokeStyle="black"; ctx.lineWidth=2;
+  ctx.font="20px sans-serif";
+  ctx.strokeText("life: "+"❤️".repeat(lives),canvas.width-160,30);
+  ctx.fillText("life: "+"❤️".repeat(lives),canvas.width-160,30);
+
+  // Active Power UI
+  ctx.font="16px sans-serif";
+  let xStart = 20;
+  if(activePowerUI.fast>0){ ctx.drawImage(fastImg,xStart,canvas.height-50,30,30); ctx.fillText(Math.ceil(activePowerUI.fast),xStart+10,canvas.height-55); xStart+=50; }
+  if(activePowerUI.triple>0){ ctx.drawImage(tripleImg,xStart,canvas.height-50,30,30); ctx.fillText(Math.ceil(activePowerUI.triple),xStart+10,canvas.height-55); xStart+=50; }
+  if(activePowerUI.shield>0){ ctx.drawImage(shieldPowerImg,xStart,canvas.height-50,30,30); ctx.fillText(Math.ceil(activePowerUI.shield),xStart+10,canvas.height-55); xStart+=50; }
+}
+
+//--------------------- Game Loop ---------------------
+function gameLoop(){
+  if(gameOver || isPaused) return;
+  update(); draw();
+  animationId=requestAnimationFrame(gameLoop);
+}
+
+resetGame();
+
+
+</script>
+
+</body>
+</html>
