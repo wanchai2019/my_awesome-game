@@ -9,26 +9,38 @@
       background: #111;
       display: block;
       margin: auto;
+      max-width: 100%;
+      height: auto;
     }
+
     body {
       background: #222;
       color: white;
       font-family: sans-serif;
       text-align: center;
-      margin-top: 20px;
+      margin: 0;
+      padding: 10px;
     }
+
+    h1 {
+      font-size: 2rem;
+      margin: 10px 0;
+    }
+
     button {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin-top: 10px;
+      padding: 8px 16px;
+      font-size: 1rem;
+      margin: 5px;
       cursor: pointer;
+      border-radius: 8px;
     }
 
     /* --- Mobile Controls (D-Pad) --- */
     #mobile-controls {
       display: none; /* ซ่อนในจอใหญ่ */
-      width: 140px;
-      height: 140px;
+      width: 30vw;
+      max-width: 140px;
+      aspect-ratio: 1 / 1;
       margin: 20px auto;
       position: relative;
       border-radius: 50%;
@@ -42,13 +54,19 @@
       #mobile-controls {
         display: block;
       }
+      h1 {
+        font-size: 1.5rem;
+      }
+      #score {
+        font-size: 1rem;
+      }
     }
 
     /* ลูกศรทิศทาง */
     .arrow {
       position: absolute;
-      width: 40px;
-      height: 40px;
+      width: 25%;
+      height: 25%;
       background: #444;
       color: white;
       border: 2px solid #666;
@@ -56,13 +74,27 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
+      font-size: 1.2rem;
     }
 
-    #upBtn { top: 5px; left: 50px; }
-    #downBtn { bottom: 5px; left: 50px; }
-    #leftBtn { left: 5px; top: 50px; }
-    #rightBtn { right: 5px; top: 50px; }
+    #upBtn { top: 5%; left: 37%; }
+    #downBtn { bottom: 5%; left: 37%; }
+    #leftBtn { left: 5%; top: 37%; }
+    #rightBtn { right: 5%; top: 37%; }
+
+    /* Stars Rating */
+    .star {
+      font-size: 30px;
+      cursor: pointer;
+      color: gray;
+      transition: transform 0.2s;
+    }
+    .star.selected {
+      color: gold;
+    }
+    .star:hover {
+      transform: scale(1.2);
+    }
   </style>
 </head>
 <body>
@@ -82,239 +114,250 @@
 
   <audio id="bgMusic" src="./sound/background.mp3" loop></audio>
   <audio id="eatSound" src="./sound/eatSound.mp3"></audio>
-  <audio id="gameOverSound" src="./sound/gamover.mp3"></audio>
+  <audio id="gameOverSound" src="./sound/gameover.mp3"></audio>
 
   <script>
-  const canvas = document.getElementById("gameCanvas");
-  const ctx = canvas.getContext("2d");
-  const statusEl = document.getElementById("status");
-  const scoreEl = document.getElementById("score");
-  const restartBtn = document.getElementById("restartBtn");
+    const snakeColors = [
+      '#6b8e23', '#556b2f', '#808000', '#9acd32', '#adff2f'
+    ];  
 
-  const bgMusic = document.getElementById("bgMusic");
-  const eatSound = document.getElementById("eatSound");
-  const gameOverSound = document.getElementById("gameOverSound");
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const statusEl = document.getElementById("status");
+    const scoreEl = document.getElementById("score");
+    const restartBtn = document.getElementById("restartBtn");
 
-  const headImg = new Image();
-  headImg.src = "./images/headsnake.png"; // 🔥 ไฟล์นี้หันซ้ายเป็นค่าเริ่มต้น
+    const bgMusic = document.getElementById("bgMusic");
+    const eatSound = document.getElementById("eatSound");
+    const gameOverSound = document.getElementById("gameOverSound");
 
-  const upBtn = document.getElementById("upBtn");
-  const downBtn = document.getElementById("downBtn");
-  const leftBtn = document.getElementById("leftBtn");
-  const rightBtn = document.getElementById("rightBtn");
+    const headImg = new Image();
+    headImg.src = "./images/headsnake.png"; // 🔥 ค่าเริ่มต้นหันซ้าย
 
-  const tileSize = 20;
-  const rows = canvas.height / tileSize;
-  const cols = canvas.width / tileSize;
+    const upBtn = document.getElementById("upBtn");
+    const downBtn = document.getElementById("downBtn");
+    const leftBtn = document.getElementById("leftBtn");
+    const rightBtn = document.getElementById("rightBtn");
 
-  let snake, direction, nextDirection, grow, gameOver, score, food, paused;
-  let highScore = localStorage.getItem("highScore") || 0;
-  let lastTime = 0; 
-  let frameInterval = 100; // ms ต่อการเคลื่อนที่ 1 ครั้ง
-
-  function resetGame() {
-    snake = [{ x: 10, y: 10 }];
-    direction = "right";
-    nextDirection = "right";
-    grow = false;
-    gameOver = false;
-    score = 0;
-    frameInterval = 100;
-    paused = false;
-    food = generateFood();
-
-    statusEl.textContent = "";
-    updateScore();
-    restartBtn.style.display = "none";
-
-    bgMusic.pause();
-    bgMusic.currentTime = 0;
-    bgMusic.play();
-
-    lastTime = 0;
-    requestAnimationFrame(gameLoop);
-  }
-
-  function updateScore() {
-    if (score > highScore) {
-      highScore = score;
-      localStorage.setItem("highScore", highScore);
+    // ✅ รองรับ click + touch
+    function bindControl(btn, newDir, opposite) {
+      function handler() {
+        if (direction !== opposite) nextDirection = newDir;
+      }
+      btn.addEventListener("click", handler);
+      btn.addEventListener("touchstart", handler);
     }
-    scoreEl.textContent = "Score: " + score + " | High Score: " + highScore;
-  }
 
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowUp" && direction !== "down") nextDirection = "up";
-    if (e.key === "ArrowDown" && direction !== "up") nextDirection = "down";
-    if (e.key === "ArrowLeft" && direction !== "right") nextDirection = "left";
-    if (e.key === "ArrowRight" && direction !== "left") nextDirection = "right";
+    const tileSize = 20;
+    const rows = canvas.height / tileSize;
+    const cols = canvas.width / tileSize;
 
-    if (e.key === " ") {
-      paused = !paused;
-      statusEl.textContent = paused ? "Paused" : "";
-      if (!paused) requestAnimationFrame(gameLoop);
+    let snake, direction, nextDirection, grow, gameOver, score, food, paused;
+    let highScore = localStorage.getItem("highScore") || 0;
+    let lastTime = 0; 
+    let frameInterval = 100;
+
+    function resizeCanvas() {
+      let scale = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+      canvas.style.width = (800 * scale) + "px";
+      canvas.style.height = (600 * scale) + "px";
     }
-  });
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
 
-  upBtn.addEventListener("click", () => { if (direction !== "down") nextDirection = "up"; });
-  downBtn.addEventListener("click", () => { if (direction !== "up") nextDirection = "down"; });
-  leftBtn.addEventListener("click", () => { if (direction !== "right") nextDirection = "left"; });
-  rightBtn.addEventListener("click", () => { if (direction !== "left") nextDirection = "right"; });
+    function resetGame() {
+      snake = [{ x: 10, y: 10 }];
+      direction = "right";
+      nextDirection = "right";
+      grow = false;
+      gameOver = false;
+      score = 0;
+      frameInterval = 100;
+      paused = false;
+      food = generateFood();
 
-  restartBtn.addEventListener("click", resetGame);
+      statusEl.textContent = "";
+      updateScore();
+      restartBtn.style.display = "none";
 
-  document.body.addEventListener("click", () => {
-    if (bgMusic.paused) bgMusic.play();
-  }, { once: true });
+      bgMusic.pause();
+      bgMusic.currentTime = 0;
+      bgMusic.play();
 
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+      lastTime = 0;
+      requestAnimationFrame(gameLoop);
+    }
 
-    // วาดอาหาร
-    ctx.fillStyle = "red";
-    ctx.beginPath();
-    ctx.arc(
-      food.x * tileSize + tileSize / 2,
-      food.y * tileSize + tileSize / 2,
-      tileSize / 2 - 2,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
+    function updateScore() {
+      if (score > highScore) {
+        highScore = score;
+        localStorage.setItem("highScore", highScore);
+      }
+      scoreEl.textContent = "Score: " + score + " | High Score: " + highScore;
+    }
 
-    // วาดงู
-    snake.forEach((segment, index) => {
-      if (index === 0) {
-        const headSize = tileSize * 1.6;
-        const headX = segment.x * tileSize + tileSize / 2;
-        const headY = segment.y * tileSize + tileSize / 2;
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowUp" && direction !== "down") nextDirection = "up";
+      if (e.key === "ArrowDown" && direction !== "up") nextDirection = "down";
+      if (e.key === "ArrowLeft" && direction !== "right") nextDirection = "left";
+      if (e.key === "ArrowRight" && direction !== "left") nextDirection = "right";
 
-        ctx.save();
-        ctx.translate(headX, headY);
-
-        // 🔥 ปรับทิศทางตาม headsnake.png (ค่าเริ่มต้นหันซ้าย)
-        let angle = 0;
-        if (direction === "up") angle = -Math.PI / 2;
-        if (direction === "down") angle = Math.PI / 2;
-        if (direction === "left") angle = 0;
-        if (direction === "right") angle = Math.PI;
-
-        ctx.rotate(angle);
-        ctx.drawImage(
-          headImg,
-          -headSize / 2,
-          -headSize / 2,
-          headSize,
-          headSize
-        );
-        ctx.restore();
-      } else {
-        ctx.fillStyle = "lime";
-        ctx.beginPath();
-        ctx.arc(
-          segment.x * tileSize + tileSize / 2,
-          segment.y * tileSize + tileSize / 2,
-          tileSize / 2 - 2,
-          0,
-          Math.PI * 2
-        );
-        ctx.fill();
+      if (e.key === " ") {
+        paused = !paused;
+        statusEl.textContent = paused ? "Paused" : "";
+        if (!paused) requestAnimationFrame(gameLoop);
       }
     });
 
-    // เอฟเฟกต์ Game Over
-    if (gameOver) {
-      ctx.fillStyle = "rgba(0,0,0,0.5)";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // ✅ ใช้ bindControl
+    bindControl(upBtn, "up", "down");
+    bindControl(downBtn, "down", "up");
+    bindControl(leftBtn, "left", "right");
+    bindControl(rightBtn, "right", "left");
 
-      ctx.fillStyle = "white";
-      ctx.font = "30px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 20);
-      ctx.font = "20px Arial";
-      ctx.fillText("Press Play Again", canvas.width / 2, canvas.height / 2 + 20);
+    restartBtn.addEventListener("click", resetGame);
+
+    document.body.addEventListener("click", () => {
+      if (bgMusic.paused) bgMusic.play();
+    }, { once: true });
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // วาดอาหาร
+      ctx.fillStyle = "red";
+      ctx.beginPath();
+      ctx.arc(
+        food.x * tileSize + tileSize / 2,
+        food.y * tileSize + tileSize / 2,
+        tileSize / 2 - 2,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+
+      // วาดงู
+      snake.forEach((segment, index) => {
+        if (index === 0) {
+          const headSize = tileSize * 1.6;
+          const headX = segment.x * tileSize + tileSize / 2;
+          const headY = segment.y * tileSize + tileSize / 2;
+
+          ctx.save();
+          ctx.translate(headX, headY);
+
+          let angle = 0;
+          if (direction === "up") angle = -Math.PI / 2;
+          if (direction === "down") angle = Math.PI / 2;
+          if (direction === "left") angle = 0;
+          if (direction === "right") angle = Math.PI;
+
+          ctx.rotate(angle);
+          ctx.drawImage(headImg, -headSize / 2, -headSize / 2, headSize, headSize);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = snakeColors[index % snakeColors.length];
+          ctx.beginPath();
+          ctx.arc(
+            segment.x * tileSize + tileSize / 2,
+            segment.y * tileSize + tileSize / 2,
+            tileSize / 2 - 2,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+        }
+      });
+
+      if (gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "white";
+        ctx.font = "30px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 20);
+        ctx.font = "20px Arial";
+        ctx.fillText("Press Play Again", canvas.width / 2, canvas.height / 2 + 20);
+      }
     }
-  }
 
-  function update() {
-    direction = nextDirection;
-    const head = { ...snake[0] };
+    function update() {
+      direction = nextDirection;
+      const head = { ...snake[0] };
 
-    if (direction === "up") head.y--;
-    if (direction === "down") head.y++;
-    if (direction === "left") head.x--;
-    if (direction === "right") head.x++;
+      if (direction === "up") head.y--;
+      if (direction === "down") head.y++;
+      if (direction === "left") head.x--;
+      if (direction === "right") head.x++;
 
-    // ตรวจ Game Over
-    if (
-      head.x < 0 || head.x >= cols ||
-      head.y < 0 || head.y >= rows ||
-      snake.some(segment => segment.x === head.x && segment.y === head.y)
-    ) {
-      gameOverSound.play();
-      gameOver = true;
-      statusEl.textContent = "Game Over!";
-      restartBtn.style.display = "inline-block";
-      bgMusic.pause();
-      return;
+      if (
+        head.x < 0 || head.x >= cols ||
+        head.y < 0 || head.y >= rows ||
+        snake.some(segment => segment.x === head.x && segment.y === head.y)
+      ) {
+        gameOverSound.play();
+        gameOver = true;
+        statusEl.textContent = "Game Over!";
+        restartBtn.style.display = "inline-block";
+        bgMusic.pause();
+        return;
+      }
+
+      snake.unshift(head);
+
+      if (head.x === food.x && head.y === food.y) {
+        eatSound.play();
+        score++;
+        updateScore();
+
+        if (frameInterval > 40) frameInterval -= 2;
+        grow = true;
+        food = generateFood();
+      }
+
+      if (!grow) snake.pop();
+      else grow = false;
     }
 
-    snake.unshift(head);
-
-    if (head.x === food.x && head.y === food.y) {
-      eatSound.play();
-      score++;
-      updateScore();
-
-      if (frameInterval > 40) frameInterval -= 2; // เร็วขึ้น
-      grow = true;
-      food = generateFood();
+    function generateFood() {
+      let newFood;
+      do {
+        newFood = {
+          x: Math.floor(Math.random() * cols),
+          y: Math.floor(Math.random() * rows)
+        };
+      } while (snake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
+      return newFood;
     }
 
-    if (!grow) snake.pop();
-    else grow = false;
-  }
+    function gameLoop(timestamp) {
+      if (gameOver || paused) {
+        draw();
+        return;
+      }
 
-  function generateFood() {
-    let newFood;
-    do {
-      newFood = {
-        x: Math.floor(Math.random() * cols),
-        y: Math.floor(Math.random() * rows)
-      };
-    } while (snake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
-    return newFood;
-  }
+      if (timestamp - lastTime > frameInterval) {
+        update();
+        lastTime = timestamp;
+      }
 
-  function gameLoop(timestamp) {
-    if (gameOver || paused) {
       draw();
-      return;
+      requestAnimationFrame(gameLoop);
     }
 
-    if (timestamp - lastTime > frameInterval) {
-      update();
-      lastTime = timestamp;
-    }
-
-    draw();
-    requestAnimationFrame(gameLoop);
-  }
-
-  resetGame();
-</script>
-
+    resetGame();
+  </script>
 
   <br>
   <a href="index.html">
     <button>Home</button>
   </a>
-    <!-- ส่วนท้าย Footer -->
+
+  <!-- Footer -->
   <footer style="margin-top:30px; padding:20px; background:#111; color:white;">
     <p id="visitorCount"></p>
-
     <div id="rating" style="margin-top:10px;">
-      
       <span class="star" data-value="1">★</span>
       <span class="star" data-value="2">★</span>
       <span class="star" data-value="3">★</span>
@@ -323,17 +366,6 @@
       <p id="ratingText" style="margin-top:5px; color:gold;"></p>
     </div>
   </footer>
-
-  <style>
-    .star {
-      font-size: 30px;
-      cursor: pointer;
-      color: gray;
-    }
-    .star.selected {
-      color: gold;
-    }
-  </style>
 
   <script>
     // ---- Visitor Counter ----
@@ -366,9 +398,7 @@
       });
     });
 
-    // โหลดค่าที่เคยให้ไว้
     if (savedRating > 0) highlightStars(savedRating);
   </script>
-
 </body>
 </html>
