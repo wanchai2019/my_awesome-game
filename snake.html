@@ -5,14 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>A game where a snake comes out!!</title>
   <style>
-    canvas {
-      background: #111;
-      display: block;
-      margin: auto;
-      max-width: 100%;
-      height: auto;
-    }
-
     body {
       background: #222;
       color: white;
@@ -27,6 +19,14 @@
       margin: 10px 0;
     }
 
+    canvas {
+      background: #111;
+      display: block;
+      margin: auto;
+      max-width: 100%;
+      height: auto;
+    }
+
     button {
       padding: 8px 16px;
       font-size: 1rem;
@@ -35,38 +35,35 @@
       border-radius: 8px;
     }
 
-    /* --- Mobile Controls (D-Pad) --- */
+    /* Top Bar */
+    #topBar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      background: #111;
+      border-bottom: 2px solid #333;
+    }
+    #topBar .left { text-align: left; }
+    #topBar .right { text-align: right; }
+    #topBar h2 { margin: 0; font-size: 24px; }
+
+    /* D-Pad */
     #mobile-controls {
-      display: none; /* ซ่อนในจอใหญ่ */
-      width: 30vw;
-      max-width: 140px;
-      aspect-ratio: 1 / 1;
-      margin: 20px auto;
+      width: 140px;
+      height: 140px;
       position: relative;
       border-radius: 50%;
       background: #333;
       border: 3px solid #666;
       user-select: none;
       touch-action: none;
+      margin: 10px auto;
     }
-
-    @media (max-width: 768px) {
-      #mobile-controls {
-        display: block;
-      }
-      h1 {
-        font-size: 1.5rem;
-      }
-      #score {
-        font-size: 1rem;
-      }
-    }
-
-    /* ลูกศรทิศทาง */
     .arrow {
       position: absolute;
-      width: 25%;
-      height: 25%;
+      width: 40px;
+      height: 40px;
       background: #444;
       color: white;
       border: 2px solid #666;
@@ -74,35 +71,41 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.2rem;
+      font-size: 20px;
     }
+    #upBtn { top: 5px; left: 50px; }
+    #downBtn { bottom: 5px; left: 50px; }
+    #leftBtn { left: 5px; top: 50px; }
+    #rightBtn { right: 5px; top: 50px; }
 
-    #upBtn { top: 5%; left: 37%; }
-    #downBtn { bottom: 5%; left: 37%; }
-    #leftBtn { left: 5%; top: 37%; }
-    #rightBtn { right: 5%; top: 37%; }
-
-    /* Stars Rating */
+    /* Footer Stars */
     .star {
       font-size: 30px;
       cursor: pointer;
       color: gray;
       transition: transform 0.2s;
     }
-    .star.selected {
-      color: gold;
-    }
-    .star:hover {
-      transform: scale(1.2);
-    }
+    .star.selected { color: gold; }
+    .star:hover { transform: scale(1.2); }
   </style>
 </head>
 <body>
   <h1>A game where a snake comes out!!</h1>
+
+  <!-- Top Bar -->
+  <div id="topBar">
+    <div class="left">
+      <h2 id="gameOverLabel"></h2>
+    </div>
+    <div class="right">
+      <p id="score">Score: 0</p>
+      <p id="highScore">High Score: 0</p>
+    </div>
+  </div>
+
+  <!-- Canvas -->
   <canvas id="gameCanvas" width="800" height="600"></canvas>
   <p id="status"></p>
-  <p id="score">Score: 0</p>
-  <button id="restartBtn" style="display:none">Play Again</button>
 
   <!-- D-Pad Controls -->
   <div id="mobile-controls">
@@ -112,41 +115,50 @@
     <div id="rightBtn" class="arrow">→</div>
   </div>
 
+  <!-- Bottom Buttons -->
+  <div style="margin-top:10px;">
+    <a href="index.html"><button>Home</button></a>
+    <button id="restartBtn" style="display:none">Play Again</button>
+  </div>
+
+  <!-- Audio -->
   <audio id="bgMusic" src="./sound/background.mp3" loop></audio>
   <audio id="eatSound" src="./sound/eatSound.mp3"></audio>
   <audio id="gameOverSound" src="./sound/gameover.mp3"></audio>
 
-  <script>
-    const snakeColors = [
-      '#6b8e23', '#556b2f', '#808000', '#9acd32', '#adff2f'
-    ];  
+  <footer style="margin-top:30px; padding:20px; background:#111; color:white;">
+    <p id="visitorCount"></p>
+    <div id="rating" style="margin-top:10px;">
+      <span class="star" data-value="1">★</span>
+      <span class="star" data-value="2">★</span>
+      <span class="star" data-value="3">★</span>
+      <span class="star" data-value="4">★</span>
+      <span class="star" data-value="5">★</span>
+      <p id="ratingText" style="margin-top:5px; color:gold;"></p>
+    </div>
+  </footer>
 
+  <script>
+    const snakeColors = ['#6b8e23','#556b2f','#808000','#9acd32','#adff2f'];  
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const statusEl = document.getElementById("status");
     const scoreEl = document.getElementById("score");
+    const highScoreEl = document.getElementById("highScore");
     const restartBtn = document.getElementById("restartBtn");
+    const gameOverLabel = document.getElementById("gameOverLabel");
 
     const bgMusic = document.getElementById("bgMusic");
     const eatSound = document.getElementById("eatSound");
     const gameOverSound = document.getElementById("gameOverSound");
 
     const headImg = new Image();
-    headImg.src = "./images/headsnake.png"; // 🔥 ค่าเริ่มต้นหันซ้าย
+    headImg.src = "./images/headsnake.png";
 
-    const upBtn = document.getElementById("upBtn");
-    const downBtn = document.getElementById("downBtn");
-    const leftBtn = document.getElementById("leftBtn");
-    const rightBtn = document.getElementById("rightBtn");
-
-    // ✅ รองรับ click + touch
-    function bindControl(btn, newDir, opposite) {
-      function handler() {
-        if (direction !== opposite) nextDirection = newDir;
-      }
-      btn.addEventListener("click", handler);
-      btn.addEventListener("touchstart", handler);
-    }
+    const upBtn = [document.getElementById("upBtn")];
+    const downBtn = [document.getElementById("downBtn")];
+    const leftBtn = [document.getElementById("leftBtn")];
+    const rightBtn = [document.getElementById("rightBtn")];
 
     const tileSize = 20;
     const rows = canvas.height / tileSize;
@@ -165,6 +177,16 @@
     window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
 
+    function bindControl(btns, newDir, opposite) {
+      btns.forEach(btn=>{
+        function handler() {
+          if (direction !== opposite) nextDirection = newDir;
+        }
+        btn.addEventListener("click", handler);
+        btn.addEventListener("touchstart", handler);
+      });
+    }
+
     function resetGame() {
       snake = [{ x: 10, y: 10 }];
       direction = "right";
@@ -175,15 +197,13 @@
       frameInterval = 100;
       paused = false;
       food = generateFood();
-
       statusEl.textContent = "";
       updateScore();
       restartBtn.style.display = "none";
-
+      gameOverLabel.textContent = "";
       bgMusic.pause();
       bgMusic.currentTime = 0;
       bgMusic.play();
-
       lastTime = 0;
       requestAnimationFrame(gameLoop);
     }
@@ -193,7 +213,8 @@
         highScore = score;
         localStorage.setItem("highScore", highScore);
       }
-      scoreEl.textContent = "Score: " + score + " | High Score: " + highScore;
+      scoreEl.textContent = "Score: " + score;
+      highScoreEl.textContent = "High Score: " + highScore;
     }
 
     document.addEventListener("keydown", (e) => {
@@ -201,7 +222,6 @@
       if (e.key === "ArrowDown" && direction !== "up") nextDirection = "down";
       if (e.key === "ArrowLeft" && direction !== "right") nextDirection = "left";
       if (e.key === "ArrowRight" && direction !== "left") nextDirection = "right";
-
       if (e.key === " ") {
         paused = !paused;
         statusEl.textContent = paused ? "Paused" : "";
@@ -209,7 +229,6 @@
       }
     });
 
-    // ✅ ใช้ bindControl
     bindControl(upBtn, "up", "down");
     bindControl(downBtn, "down", "up");
     bindControl(leftBtn, "left", "right");
@@ -223,182 +242,101 @@
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // วาดอาหาร
+      // Food
       ctx.fillStyle = "red";
       ctx.beginPath();
-      ctx.arc(
-        food.x * tileSize + tileSize / 2,
-        food.y * tileSize + tileSize / 2,
-        tileSize / 2 - 2,
-        0,
-        Math.PI * 2
-      );
+      ctx.arc(food.x * tileSize + tileSize/2, food.y*tileSize + tileSize/2, tileSize/2 -2, 0, Math.PI*2);
       ctx.fill();
-
-      // วาดงู
-      snake.forEach((segment, index) => {
-        if (index === 0) {
-          const headSize = tileSize * 1.6;
-          const headX = segment.x * tileSize + tileSize / 2;
-          const headY = segment.y * tileSize + tileSize / 2;
-
+      // Snake
+      snake.forEach((segment,index)=>{
+        if(index===0){
+          const headSize = tileSize*1.6;
+          const headX = segment.x*tileSize + tileSize/2;
+          const headY = segment.y*tileSize + tileSize/2;
           ctx.save();
           ctx.translate(headX, headY);
-
           let angle = 0;
-          if (direction === "up") angle = -Math.PI / 2;
-          if (direction === "down") angle = Math.PI / 2;
-          if (direction === "left") angle = 0;
-          if (direction === "right") angle = Math.PI;
-
+          if(direction==="up") angle=-Math.PI/2;
+          if(direction==="down") angle=Math.PI/2;
+          if(direction==="left") angle=0;
+          if(direction==="right") angle=Math.PI;
           ctx.rotate(angle);
-          ctx.drawImage(headImg, -headSize / 2, -headSize / 2, headSize, headSize);
+          ctx.drawImage(headImg,-headSize/2,-headSize/2,headSize,headSize);
           ctx.restore();
-        } else {
+        }else{
           ctx.fillStyle = snakeColors[index % snakeColors.length];
           ctx.beginPath();
-          ctx.arc(
-            segment.x * tileSize + tileSize / 2,
-            segment.y * tileSize + tileSize / 2,
-            tileSize / 2 - 2,
-            0,
-            Math.PI * 2
-          );
+          ctx.arc(segment.x*tileSize + tileSize/2, segment.y*tileSize + tileSize/2, tileSize/2-2,0,Math.PI*2);
           ctx.fill();
         }
       });
-
-      if (gameOver) {
-        ctx.fillStyle = "rgba(0,0,0,0.5)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.fillStyle = "white";
-        ctx.font = "30px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 20);
-        ctx.font = "20px Arial";
-        ctx.fillText("Press Play Again", canvas.width / 2, canvas.height / 2 + 20);
-      }
     }
 
     function update() {
       direction = nextDirection;
-      const head = { ...snake[0] };
-
-      if (direction === "up") head.y--;
-      if (direction === "down") head.y++;
-      if (direction === "left") head.x--;
-      if (direction === "right") head.x++;
-
-      if (
-        head.x < 0 || head.x >= cols ||
-        head.y < 0 || head.y >= rows ||
-        snake.some(segment => segment.x === head.x && segment.y === head.y)
-      ) {
+      const head = {...snake[0]};
+      if(direction==="up") head.y--;
+      if(direction==="down") head.y++;
+      if(direction==="left") head.x--;
+      if(direction==="right") head.x++;
+      if(head.x<0||head.x>=cols||head.y<0||head.y>=rows||snake.some(s=>s.x===head.x && s.y===head.y)){
         gameOverSound.play();
-        gameOver = true;
-        statusEl.textContent = "Game Over!";
-        restartBtn.style.display = "inline-block";
+        gameOver=true;
+        statusEl.textContent="";
+        gameOverLabel.textContent="GAME OVER";
+        restartBtn.style.display="inline-block";
         bgMusic.pause();
         return;
       }
-
       snake.unshift(head);
-
-      if (head.x === food.x && head.y === food.y) {
+      if(head.x===food.x && head.y===food.y){
         eatSound.play();
         score++;
         updateScore();
-
-        if (frameInterval > 40) frameInterval -= 2;
-        grow = true;
-        food = generateFood();
+        if(frameInterval>40) frameInterval-=2;
+        grow=true;
+        food=generateFood();
       }
-
-      if (!grow) snake.pop();
-      else grow = false;
+      if(!grow) snake.pop();
+      else grow=false;
     }
 
     function generateFood() {
       let newFood;
       do {
-        newFood = {
-          x: Math.floor(Math.random() * cols),
-          y: Math.floor(Math.random() * rows)
-        };
-      } while (snake.some(segment => segment.x === newFood.x && segment.y === newFood.y));
+        newFood = {x: Math.floor(Math.random()*cols), y: Math.floor(Math.random()*rows)};
+      } while(snake.some(s=>s.x===newFood.x && s.y===newFood.y));
       return newFood;
     }
 
     function gameLoop(timestamp) {
-      if (gameOver || paused) {
-        draw();
-        return;
-      }
-
-      if (timestamp - lastTime > frameInterval) {
-        update();
-        lastTime = timestamp;
-      }
-
+      if(gameOver||paused){ draw(); return; }
+      if(timestamp-lastTime>frameInterval){ update(); lastTime=timestamp; }
       draw();
       requestAnimationFrame(gameLoop);
     }
 
     resetGame();
-  </script>
 
-  <br>
-  <a href="index.html">
-    <button>Home</button>
-  </a>
-
-  <!-- Footer -->
-  <footer style="margin-top:30px; padding:20px; background:#111; color:white;">
-    <p id="visitorCount"></p>
-    <div id="rating" style="margin-top:10px;">
-      <span class="star" data-value="1">★</span>
-      <span class="star" data-value="2">★</span>
-      <span class="star" data-value="3">★</span>
-      <span class="star" data-value="4">★</span>
-      <span class="star" data-value="5">★</span>
-      <p id="ratingText" style="margin-top:5px; color:gold;"></p>
-    </div>
-  </footer>
-
-  <script>
-    // ---- Visitor Counter ----
-    let count = localStorage.getItem("visitorCount") || 0;
+    // Visitor Counter
+    let count = localStorage.getItem("visitorCount")||0;
     count++;
-    localStorage.setItem("visitorCount", count);
-    document.getElementById("visitorCount").textContent = "Visitors: " + count;
+    localStorage.setItem("visitorCount",count);
+    document.getElementById("visitorCount").textContent = "Visitors: "+count;
 
-    // ---- Star Rating ----
+    // Star Rating
     const stars = document.querySelectorAll(".star");
     const ratingText = document.getElementById("ratingText");
-    let savedRating = localStorage.getItem("gameRating") || 0;
-
-    function highlightStars(rating) {
-      stars.forEach(star => {
-        star.classList.remove("selected");
-        if (star.dataset.value <= rating) {
-          star.classList.add("selected");
-        }
-      });
-      if (rating > 0) ratingText.textContent = "Rate this Game: " + rating + " Stars";
-      else ratingText.textContent = "";
+    let savedRating = localStorage.getItem("gameRating")||0;
+    function highlightStars(rating){
+      stars.forEach(star=>{ star.classList.remove("selected"); if(star.dataset.value<=rating) star.classList.add("selected"); });
+      ratingText.textContent = rating>0? "Rate this Game: "+rating+" Stars": "";
     }
-
-    stars.forEach(star => {
-      star.addEventListener("click", () => {
-        let rating = star.dataset.value;
-        localStorage.setItem("gameRating", rating);
-        highlightStars(rating);
-      });
+    stars.forEach(star=>{
+      star.addEventListener("click",()=>{ let rating=star.dataset.value; localStorage.setItem("gameRating",rating); highlightStars(rating); });
     });
+    if(savedRating>0) highlightStars(savedRating);
 
-    if (savedRating > 0) highlightStars(savedRating);
   </script>
 </body>
 </html>
