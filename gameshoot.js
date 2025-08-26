@@ -1,4 +1,3 @@
-
 //--------------------- Game Variables ---------------------
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -11,8 +10,10 @@ const bgMusic = document.getElementById("bgMusic");
 const pauseSound = document.getElementById("pauseSound");
 const resumeSound = document.getElementById("resumeSound");
 const pauseBtn = document.getElementById("pauseBtn");
-const scremSound = document.getElementById("scremSound"); // เสียงชน
+const scremSound = document.getElementById("scremSound");
 const blinkSound = new Audio("./sound/blink.mp3");
+const bossShootSound = new Audio("./sound/boss_shoot.mp3");
+const playerHitSound = new Audio("./sound/player_hit.mp3");
 
 const controls = {
   up: document.getElementById('arrow-up'),
@@ -22,7 +23,7 @@ const controls = {
   shoot: document.getElementById('shoot-btn')
 };
 
-let arrows = [], birds = [], explosions = [], powerUps = [];
+let arrows = [], birds = [], explosions = [], powerUps = [], enemyArrows = [], goldParticles = [];
 let score = 0, lives = 3, gameOver = false, level = 1;
 let highScore = localStorage.getItem("highScore") || 0;
 let playerMove = { up:false, down:false, left:false, right:false };
@@ -34,6 +35,10 @@ let arrowSpeed = 8;
 let tripleArrow = false;
 let playerShield = false;
 
+// Power-up timers
+let powerTimers = { fast:0, triple:0, shield:0 };
+const POWER_DURATION = 5000;
+
 // Active power UI
 let activePowerUI = { fast:0, triple:0, shield:0 };
 
@@ -41,9 +46,12 @@ let activePowerUI = { fast:0, triple:0, shield:0 };
 const powerTypes = { FAST_ARROW:"fast", TRIPLE_ARROW:"triple", SHIELD:"shield" };
 
 // Player object
-const player = { x:50, y:canvas.height/2, width:45, height:80, speed:5 };
+const player = { x:50, y:50, width:45, height:80, speed:5 };
 
 // Images
+const bgImg = new Image();
+bgImg.src = "./img/forest.png";
+
 const birdImg = new Image(); birdImg.src = "./img/bird.png";
 const goldenBirdImg = new Image(); goldenBirdImg.src = "./img/golden_bird.png";
 const bossImg = new Image(); bossImg.src = "./img/boss_bird.png";
@@ -51,12 +59,10 @@ const playerImg = new Image(); playerImg.src = "./img/archer.png";
 const arrowImg = new Image(); arrowImg.src = "./img/arrow.png";
 const shieldImg = new Image(); shieldImg.src = "./img/shieldb.png";
 
-// Power-up images
 const fastImg = new Image(); fastImg.src="./img/fast.png";
 const tripleImg = new Image(); tripleImg.src="./img/threearrow.png";
 const shieldPowerImg = new Image(); shieldPowerImg.src="./img/shieldb.png";
 
-// Explosion
 const birdExoImg = new Image(); birdExoImg.src = "./img/birdexo.png";
 
 //--------------------- Explosion Class ---------------------
@@ -93,9 +99,9 @@ class Explosion {
 //--------------------- Spawn Timers ---------------------
 let lastBirdSpawn = 0;
 let birdSpawnInterval = 1500; // ms
-
 let lastPowerUpSpawn = 0;
 let powerUpSpawnInterval = 10000; // ms
+const bossShootInterval = 2000; // ms
 
 //--------------------- Internal Spawn Functions ---------------------
 function spawnBirdInternal(){
@@ -105,10 +111,16 @@ function spawnBirdInternal(){
   const speed = Math.min(baseSpeed,10);
   const isBoss = Math.random() < 0.3; 
   if(isBoss && birds.filter(b=>b.isBoss).length===0){
-    birds.push({ x:canvas.width, y, startY:y, width:120, height:100, speed:2, amplitude:40, frequency:0.02, time:0, isBoss:true, hp:5 });
+    birds.push({ 
+      x:canvas.width, y, startY:y, width:120, height:100, speed:2, amplitude:40, frequency:0.02, 
+      time:0, isBoss:true, hp:5, lastShoot: Date.now() 
+    });
   } else {
     const isGolden = Math.random()<0.1;
-    birds.push({ x:canvas.width, y, startY:y, width:40, height:30, speed, amplitude:20+Math.random()*20, frequency:0.02+Math.random()*0.03, time:0, isGolden, isBoss:false });
+    birds.push({ 
+      x:canvas.width, y, startY:y, width:40, height:30, speed, amplitude:20+Math.random()*20, frequency:0.02+Math.random()*0.03, 
+      time:0, isGolden, isBoss:false 
+    });
   }
 }
 
@@ -169,19 +181,23 @@ pauseBtn.addEventListener("click",()=>{
     resumeSound.play(); 
     pauseBtn.textContent="Pause"; 
     bgMusic.play(); 
+    lastBirdSpawn = Date.now();
+    lastPowerUpSpawn = Date.now();
+    Object.keys(powerTimers).forEach(key=>{ if(powerTimers[key]>0) powerTimers[key]=Date.now()+POWER_DURATION; });
     gameLoop();
   }
 });
 
+//--------------------- Shoot ---------------------
 function shoot(){
   const shots = tripleArrow ? [-10,0,10] : [0];
-  shots.forEach(offset=>{
+  shots.forEach((offset,index)=>{
     arrows.push({
       x: player.x + player.width,
       y: player.y + player.height/2 + offset,
       speed: arrowSpeed,
       angle: 0,
-      isGolden: nextArrowIsGolden
+      isGolden: nextArrowIsGolden && index===1
     });
   });
   shootSound.currentTime = 0;
@@ -200,46 +216,119 @@ function updatePlayerPosition(){
   if(player.y+player.height>canvas.height) player.y=canvas.height-player.height;
 }
 
+//--------------------- Boss Shooting ---------------------
+function updateBossShooting(){
+  const now = Date.now();
+  birds.forEach((bird,i)=>{
+    if(bird.isBoss){
+      // เช็คว่าบอสยังอยู่ใน canvas
+      if(bird.x + bird.width < 0){
+        // ลบ enemyArrows ของบอสนี้
+        enemyArrows = enemyArrows.filter(a=>a.bossId !== bird.id);
+        return;
+      }
+      if(!bird.lastShoot) bird.lastShoot = now;
+      if(now - bird.lastShoot > bossShootInterval){
+        const dx = player.x - bird.x;
+        const dy = player.y - bird.y;
+        const angle = Math.atan2(dy, dx);
+        enemyArrows.push({ x: bird.x, y: bird.y, speed:6, angle, bossId: bird.id });
+        bird.lastShoot = now;
+        bossShootSound.currentTime=0; 
+        bossShootSound.play();
+      }
+    }
+  });
+}
+
+//--------------------- Enemy Arrows ---------------------
+function updateEnemyArrows(){
+  for(let i=enemyArrows.length-1;i>=0;i--){
+    const arrow = enemyArrows[i];
+    arrow.x += arrow.speed * Math.cos(arrow.angle);
+    arrow.y += arrow.speed * Math.sin(arrow.angle);
+
+    if(player.x < arrow.x+10 && player.x+player.width > arrow.x && player.y < arrow.y+5 && player.y+player.height > arrow.y){
+      if(!playerShield){ 
+        lives--; 
+        if(lives<=0){ gameOver=true; restartBtn.style.display="inline-block"; bgMusic.pause(); } 
+      }
+      scremSound.currentTime=0; scremSound.play();
+      playerHitSound.currentTime=0; playerHitSound.play();
+      explosions.push(new Explosion(player.x+player.width/2, player.y+player.height/2,"red"));
+      enemyArrows.splice(i,1);
+      continue;
+    }
+
+    if(arrow.x<0 || arrow.x>canvas.width || arrow.y<0 || arrow.y>canvas.height) enemyArrows.splice(i,1);
+  }
+}
+
+function drawEnemyArrows(){
+  enemyArrows.forEach(arrow=>{
+    ctx.save();
+    ctx.translate(arrow.x, arrow.y);
+    ctx.rotate(arrow.angle);
+    ctx.fillStyle="purple";
+    ctx.fillRect(-10,-2,10,4);
+    ctx.restore();
+  });
+}
+
+//--------------------- Golden Arrow Trail ---------------------
+function updateGoldenArrowTrail(){
+  arrows.forEach(arrow=>{
+    if(arrow.isGolden){
+      goldParticles.push({ x: arrow.x, y: arrow.y, radius: Math.random()*2+1, alpha:1 });
+    }
+  });
+
+  goldParticles.forEach(p=>{
+    p.alpha -= 0.03;
+    p.y += 0.1*Math.random();
+  });
+  goldParticles = goldParticles.filter(p=>p.alpha>0);
+}
+
+function drawGoldenArrowTrail(){
+  goldParticles.forEach(p=>{
+    ctx.globalAlpha = p.alpha;
+    ctx.fillStyle="gold";
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.radius,0,Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  });
+}
+
 //--------------------- Update ---------------------
 function update(){
   updatePlayerPosition();
+  updateBossShooting();
+  updateEnemyArrows();
+  updateGoldenArrowTrail();
 
   const now = Date.now();
 
-  // Bird spawn based on timestamp
-  if(now - lastBirdSpawn > birdSpawnInterval){
-    spawnBirdInternal();
-    lastBirdSpawn = now;
-  }
+  if(now - lastBirdSpawn > birdSpawnInterval){ spawnBirdInternal(); lastBirdSpawn = now; }
+  if(now - lastPowerUpSpawn > powerUpSpawnInterval){ spawnPowerUpInternal(); lastPowerUpSpawn = now; }
 
-  // Power-up spawn based on timestamp
-  if(now - lastPowerUpSpawn > powerUpSpawnInterval){
-    spawnPowerUpInternal();
-    lastPowerUpSpawn = now;
-  }
+  arrows.forEach((arrow,i)=>{ arrow.x+=arrow.speed; if(arrow.x>canvas.width) arrows.splice(i,1); });
 
-  // Arrows
-  for(let i=arrows.length-1;i>=0;i--){ arrows[i].x += arrows[i].speed; if(arrows[i].x>canvas.width) arrows.splice(i,1); }
-
-  // Birds
-  for(let i=birds.length-1;i>=0;i--){
-    let bird = birds[i];
+  birds.forEach((bird,i)=>{
     bird.x -= bird.speed;
     bird.time++;
     bird.y = bird.startY + Math.sin(bird.time*bird.frequency)*bird.amplitude;
 
-    // Collision bird vs player
     if(player.x < bird.x + bird.width && player.x + player.width > bird.x &&
        player.y < bird.y + bird.height && player.y + player.height > bird.y){
-      
-      if(!playerShield) { lives--; if(lives<=0){ gameOver=true; restartBtn.style.display="inline-block"; bgMusic.pause(); } }
+      if(!playerShield){ lives--; if(lives<=0){ gameOver=true; restartBtn.style.display="inline-block"; bgMusic.pause(); } }
       scremSound.currentTime=0; scremSound.play();
       explosions.push({ img: birdExoImg, x:player.x-20, y:player.y-20, width:player.width+40, height:player.height+40, alpha:1 });
-      birds.splice(i,1); continue;
+      birds.splice(i,1); 
     }
-  }
+  });
 
-  // Arrows vs birds
   for(let ai=arrows.length-1; ai>=0; ai--){
     let arrow = arrows[ai];
     for(let bi=birds.length-1; bi>=0; bi--){
@@ -249,7 +338,12 @@ function update(){
         if(bird.isBoss){
           bird.hp -= arrow.isGolden?2:1;
           explosions.push(new Explosion(bird.x+bird.width/2,bird.y+bird.height/2,"red"));
-          if(bird.hp<=0){ birds.splice(bi,1); score += arrow.isGolden?20:10; }
+          if(bird.hp<=0){ 
+            birds.splice(bi,1); 
+            score += arrow.isGolden?20:10; 
+            // ลบลูกศรของบอสที่ตาย
+            enemyArrows = enemyArrows.filter(a=>a.bossId !== bird.id);
+          }
         } else {
           explosions.push(new Explosion(bird.x+bird.width/2,bird.y+bird.height/2,bird.isGolden?"gold":(arrow.isGolden?"yellow":"orange")));
           birds.splice(bi,1); score += bird.isGolden?5:(arrow.isGolden?2:1);
@@ -264,62 +358,73 @@ function update(){
     }
   }
 
-  // Power-Ups
-  for(let i=powerUps.length-1;i>=0;i--){
-    let pu = powerUps[i];
+  powerUps.forEach((pu,i)=>{
     pu.x -= pu.speed;
-    if(pu.x+pu.width<0){ powerUps.splice(i,1); continue; }
+    if(pu.x+pu.width<0){ powerUps.splice(i,1); return; }
 
     if(player.x < pu.x+pu.width && player.x+player.width>pu.x && player.y < pu.y+pu.height && player.y+player.height>pu.y){
       powerUps.splice(i,1);
       blinkSound.currentTime=0; blinkSound.play();
-      if(pu.type===powerTypes.FAST_ARROW){ arrowSpeed=12; activePowerUI.fast=5; setTimeout(()=>{arrowSpeed=8; activePowerUI.fast=0;},5000);}
-      if(pu.type===powerTypes.TRIPLE_ARROW){ tripleArrow=true; activePowerUI.triple=5; setTimeout(()=>{tripleArrow=false; activePowerUI.triple=0;},5000);}
-      if(pu.type===powerTypes.SHIELD){ playerShield=true; activePowerUI.shield=5; setTimeout(()=>{playerShield=false; activePowerUI.shield=0;},5000);}
+      if(pu.type===powerTypes.FAST_ARROW){ arrowSpeed=12; activePowerUI.fast=5; setTimeout(()=>{arrowSpeed=8; activePowerUI.fast=0;},POWER_DURATION);}
+      if(pu.type===powerTypes.TRIPLE_ARROW){ tripleArrow=true; activePowerUI.triple=5; setTimeout(()=>{tripleArrow=false; activePowerUI.triple=0;},POWER_DURATION);}
+      if(pu.type===powerTypes.SHIELD){ playerShield=true; activePowerUI.shield=5; setTimeout(()=>{playerShield=false; activePowerUI.shield=0;},POWER_DURATION);}
     }
-  }
+  });
 
-  // Explosions
   explosions.forEach(ex=>{ if(ex instanceof Explosion) ex.update(); });
 
-  // Decrement active power timers
   Object.keys(activePowerUI).forEach(key=>{ if(activePowerUI[key]>0) activePowerUI[key]-=1/60; });
 }
 
 //--------------------- Draw ---------------------
 function draw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // วาด background
+  ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
 
-  // Player
+  // วาด trail ลูกศรทอง
+  drawGoldenArrowTrail();
+
+  // วาดลูกศรศัตรู
+  drawEnemyArrows();
+
+  // วาดผู้เล่น
   ctx.drawImage(playerImg,player.x,player.y,player.width,player.height);
   if(playerShield) ctx.drawImage(shieldImg,player.x-5,player.y-5,player.width+10,player.height+10);
 
   glowTime += 0.1;
 
-  // Arrows
+  // วาดลูกศรปกติ / ทอง
   arrows.forEach(arrow=>{
-    ctx.save(); ctx.translate(arrow.x,arrow.y);
-    if(arrow.isGolden){ let glow=20+10*Math.sin(glowTime*5); ctx.shadowBlur=glow; ctx.shadowColor="gold"; }
-    else{ ctx.shadowBlur=15; ctx.shadowColor="red"; }
+    ctx.save();
+    ctx.translate(arrow.x,arrow.y);
+    if(arrow.isGolden){
+      let glow=20+10*Math.sin(glowTime*5);
+      ctx.shadowBlur=glow; ctx.shadowColor="gold";
+    } else {
+      ctx.shadowBlur=15; ctx.shadowColor="red";
+    }
     ctx.drawImage(arrowImg,-12.5,-5,25,10);
     ctx.restore();
   });
 
-  // Birds
+  // วาดนก
   birds.forEach(bird=>{
     if(bird.isBoss){
       ctx.drawImage(bossImg,bird.x,bird.y,bird.width,bird.height);
       ctx.fillStyle="gray"; ctx.fillRect(bird.x,bird.y-10,bird.width,6);
       ctx.fillStyle="lime"; ctx.fillRect(bird.x,bird.y-10,(bird.hp/5)*bird.width,6);
       ctx.strokeStyle="black"; ctx.strokeRect(bird.x,bird.y-10,bird.width,6);
-    } else if(bird.isGolden) ctx.drawImage(goldenBirdImg,bird.x,bird.y,bird.width,bird.height);
-    else ctx.drawImage(birdImg,bird.x,bird.y,bird.width,bird.height);
+    } else if(bird.isGolden){
+      ctx.drawImage(goldenBirdImg,bird.x,bird.y,bird.width,bird.height);
+    } else {
+      ctx.drawImage(birdImg,bird.x,bird.y,bird.width,bird.height);
+    }
   });
 
-  // Power-Ups
+  // วาด powerUps
   powerUps.forEach(pu=>{ ctx.drawImage(pu.img, pu.x, pu.y, pu.width, pu.height); });
 
-  // Explosions
+  // วาด explosions
   explosions.forEach((ex,index)=>{
     if(ex instanceof Explosion) ex.draw();
     else{
@@ -330,19 +435,19 @@ function draw(){
     }
   });
 
-  // Life
+  // วาด UI
   ctx.fillStyle="white"; ctx.strokeStyle="black"; ctx.lineWidth=2;
   ctx.font="20px sans-serif";
   ctx.strokeText("life: "+"❤️".repeat(lives),canvas.width-160,30);
   ctx.fillText("life: "+"❤️".repeat(lives),canvas.width-160,30);
 
-  // Active Power UI
   ctx.font="16px sans-serif";
   let xStart = 20;
   if(activePowerUI.fast>0){ ctx.drawImage(fastImg,xStart,canvas.height-50,30,30); ctx.fillText(Math.ceil(activePowerUI.fast),xStart+10,canvas.height-55); xStart+=50; }
   if(activePowerUI.triple>0){ ctx.drawImage(tripleImg,xStart,canvas.height-50,30,30); ctx.fillText(Math.ceil(activePowerUI.triple),xStart+10,canvas.height-55); xStart+=50; }
   if(activePowerUI.shield>0){ ctx.drawImage(shieldPowerImg,xStart,canvas.height-50,30,30); ctx.fillText(Math.ceil(activePowerUI.shield),xStart+10,canvas.height-55); xStart+=50; }
 }
+
 
 //--------------------- Game Loop ---------------------
 function gameLoop(){
@@ -353,7 +458,7 @@ function gameLoop(){
 
 //--------------------- Reset Game ---------------------
 function resetGame(){
-  arrows=[]; birds=[]; explosions=[]; powerUps=[];
+  arrows=[]; birds=[]; explosions=[]; powerUps=[]; enemyArrows=[]; goldParticles=[];
   score=0; lives=3; level=1; gameOver=false; isPaused=false; nextArrowIsGolden=false;
   arrowSpeed=8; tripleArrow=false; playerShield=false;
   activePowerUI = { fast:0, triple:0, shield:0 };
@@ -368,4 +473,21 @@ function resetGame(){
   gameLoop();
 }
 
+//--------------------- Responsive Canvas ---------------------
+function resizeCanvas(){
+  const windowRatio = window.innerWidth / window.innerHeight;
+  const gameRatio = 9/16;
+  if(windowRatio > gameRatio){
+    canvas.height = window.innerHeight;
+    canvas.width = canvas.height * gameRatio;
+  } else {
+    canvas.width = window.innerWidth;
+    canvas.height = canvas.width / gameRatio;
+  }
+  player.y = canvas.height/2 - player.height/2;
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+//--------------------- Start Game ---------------------
 resetGame();
