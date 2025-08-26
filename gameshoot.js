@@ -260,7 +260,8 @@ function updateEnemyArrows(){
     if(player.x < arrow.x+10 && player.x+player.width > arrow.x && player.y < arrow.y+5 && player.y+player.height > arrow.y){
       if(!playerShield){ 
         lives--; 
-        if(lives<=0){ gameOver=true; restartBtn.style.display="inline-block"; bgMusic.pause(); } 
+        if(lives<=0){  
+            endGame(); } 
       }
       scremSound.currentTime=0; scremSound.play();
       playerHitSound.currentTime=0; playerHitSound.play();
@@ -487,7 +488,24 @@ function resetGame(){
 
     cancelAnimationFrame(animationId);
     gameLoop();
+}  
+  //--------------------- End Game ---------------------
+function endGame(){
+  gameOver = true;
+  cancelAnimationFrame(animationId);
+  bgMusic.pause();
+
+  // อัปเดต high score
+  if(score > highScore){
+    highScore = score;
+    localStorage.setItem("highScore", highScore);
+  }
+
+  // แสดงปุ่ม Restart & Home
+  restartBtn.style.display = "inline-block";
+  homeBtn.style.display = "inline-block";
 }
+    
 
 //--------------------- Responsive Canvas ---------------------
 function resizeCanvas(){
