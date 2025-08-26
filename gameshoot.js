@@ -2,6 +2,7 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const restartBtn = document.getElementById("restartBtn");
+const homeBtn = document.getElementById("homeBtn"); 
 const scoreText = document.getElementById("score");
 
 const shootSound = document.getElementById("shootSound");
@@ -168,6 +169,14 @@ controls.shoot.addEventListener('click',shoot);
 controls.shoot.addEventListener('touchstart',e=>{ e.preventDefault(); shoot(); });
 
 restartBtn.addEventListener("click",resetGame);
+
+// Event listener ของปุ่ม Home
+homeBtn.addEventListener("click", ()=>{
+  gameOver = true;                  // หยุดเกม
+  cancelAnimationFrame(animationId); // ยกเลิก loop
+  bgMusic.pause();                   // หยุดเพลง
+  window.location.href = "index.html"; // ไปหน้า Home
+});
 
 pauseBtn.addEventListener("click",()=>{
   if(!isPaused){ 
@@ -458,19 +467,26 @@ function gameLoop(){
 
 //--------------------- Reset Game ---------------------
 function resetGame(){
-  arrows=[]; birds=[]; explosions=[]; powerUps=[]; enemyArrows=[]; goldParticles=[];
-  score=0; lives=3; level=1; gameOver=false; isPaused=false; nextArrowIsGolden=false;
-  arrowSpeed=8; tripleArrow=false; playerShield=false;
-  activePowerUI = { fast:0, triple:0, shield:0 };
-  restartBtn.style.display="none"; player.x=50; player.y=canvas.height/2;
-  scoreText.textContent=`Score: 0 | Level: 1 | High Score: ${highScore}`;
-  bgMusic.currentTime=0; bgMusic.play().catch(()=>{});
+  arrows = []; birds = []; explosions = []; powerUps = []; enemyArrows = []; goldParticles = [];
+    score = 0; lives = 3; level = 1; gameOver = false; isPaused = false; nextArrowIsGolden = false;
+    arrowSpeed = 8; tripleArrow = false; playerShield = false;
+    activePowerUI = { fast:0, triple:0, shield:0 };
+    
+    restartBtn.style.display = "none"; // ซ่อนปุ่ม Play Again
+    homeBtn.style.display = "none";    // ซ่อนปุ่ม Home
 
-  lastBirdSpawn = Date.now();
-  lastPowerUpSpawn = Date.now();
+    player.x = 50; 
+    player.y = canvas.height/2;
+    scoreText.textContent = `Score: 0 | Level: 1 | High Score: ${highScore}`;
 
-  cancelAnimationFrame(animationId);
-  gameLoop();
+    bgMusic.currentTime = 0; 
+    bgMusic.play().catch(()=>{});
+
+    lastBirdSpawn = Date.now();
+    lastPowerUpSpawn = Date.now();
+
+    cancelAnimationFrame(animationId);
+    gameLoop();
 }
 
 //--------------------- Responsive Canvas ---------------------
