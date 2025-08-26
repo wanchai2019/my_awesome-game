@@ -1,53 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Archery Game</title>
-<link rel="stylesheet" href="shootstye.css">
+  <meta charset="UTF-8">
+  <title>Archery Game - Glass Style</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="game-container">
-  <div id="top-bar">
-    <span id="score">Score: 0 | Level: 1 | High Score: 0</span>
-  </div>
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
-  <div class="controls-container">
-    <div class="d-pad">
-      <div id="arrow-up" class="arrow">▲</div>
-      <div id="arrow-down" class="arrow">▼</div>
-      <div id="arrow-left" class="arrow">◀</div>
-      <div id="arrow-right" class="arrow">▶</div>
+  <div class="hud">
+    <div id="visitorCount">Visitors: 0</div>
+    <div id="rating">
+      <span class="star" data-value="1">★</span>
+      <span class="star" data-value="2">★</span>
+      <span class="star" data-value="3">★</span>
+      <span class="star" data-value="4">★</span>
+      <span class="star" data-value="5">★</span>
     </div>
-    <div id="shoot-btn">ยิง</div>
+    <div id="powerupUI"></div>
+    <button id="pauseBtn">Pause</button>
   </div>
-  <button id="pauseBtn">Pause</button>
-  <button id="restartBtn" style="display:none">Play Again</button>
-  <button id="homeBtn">Home</button>
-</div>
 
-<footer>
-  <p id="visitorCount"></p>
-  <div id="rating">
-    <span class="star" data-value="1">★</span>
-    <span class="star" data-value="2">★</span>
-    <span class="star" data-value="3">★</span>
-    <span class="star" data-value="4">★</span>
-    <span class="star" data-value="5">★</span>
-    <p id="ratingText" style="margin-top:5px; color:gold;"></p>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+  <!-- Overlay Pause -->
+  <div id="pauseOverlay">Game Paused</div>
+
+  <!-- ปุ่มควบคุม -->
+  <div class="gamepad">
+    <div class="dpad">
+      <button id="btnLeft">←</button>
+      <button id="btnRight">→</button>
+      <button id="btnUp">↑</button>
+      <button id="btnDown">↓</button>
+    </div>
+    <div class="fireBtn">
+      <button id="btnFire">⦿</button>
+    </div>
   </div>
-</footer>
 
-<!-- Audio -->
-<audio id="bgMusic" src="sound/bgnok.mp3" loop></audio>
-<audio id="shootSound" src="sound/shoot.mp3"></audio>
-<audio id="hitSound" src="sound/hit.mp3"></audio>
-<audio id="pauseSound" src="sound/pause.mp3"></audio>
-<audio id="resumeSound" src="sound/resume.mp3"></audio>
-<audio id="scremSound" src="sound/scream.mp3"></audio>
-<audio id="blinkSound" src="sound/blink.mp3"></audio>
-
-<script src="gameshoot.js"></script>
+  <script src="gameshoot.js"></script>
 </body>
 </html>
-
