@@ -9,9 +9,10 @@
 body {
     margin: 0;
     font-family: sans-serif;
-    background: #eee;
+    background: linear-gradient(135deg, #1a1a1a, #2c2c2c);
     overflow: hidden;
     text-align: center;
+    color: #fff;
 }
 
 /* Game Container */
@@ -19,6 +20,11 @@ body {
     position: relative;
     max-width: 1000px;
     margin: auto;
+    padding: 5px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 20px rgba(0,0,0,0.6);
 }
 
 canvas {
@@ -27,7 +33,9 @@ canvas {
     background-image: url('img/forest.png');
     background-size: cover;
     background-position: center;
-    border: 2px solid #333;
+    border-radius: 15px;
+    border: 2px solid rgba(255,255,255,0.2);
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
 }
 
 /* Top Bar & Score */
@@ -36,6 +44,11 @@ canvas {
     justify-content: center;
     font-size: 16px;
     margin: 5px;
+    padding: 5px 10px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 10px rgba(0,0,0,0.4);
 }
 
 /* Controls */
@@ -56,28 +69,36 @@ canvas {
 
 .d-pad .arrow {
     position: absolute;
-    width: 30px;
-    height: 30px;
-    background: rgba(0, 0, 0, 0.5);
-    color: white;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
     display: flex;
     justify-content: center;
     align-items: center;
     font-size: 18px;
-    border: 2px solid rgba(255, 255, 255, 0.5);
-    border-radius: 5px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
     user-select: none;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    transition: all 0.2s ease-in-out;
 }
 
-#arrow-up { top: 0; left: 35px; }
-#arrow-down { bottom: 0; left: 35px; }
-#arrow-left { top: 35px; left: 0; }
-#arrow-right { top: 35px; right: 0; }
+.d-pad .arrow:active {
+    transform: scale(0.9);
+    box-shadow: 0 0 5px rgba(255,255,255,0.8);
+}
+
+#arrow-up { top: 0; left: 30px; }
+#arrow-down { bottom: 0; left: 30px; }
+#arrow-left { top: 30px; left: 0; }
+#arrow-right { top: 30px; right: 0; }
 
 #shoot-btn {
-    width: 70px;
-    height: 70px;
-    background: rgba(200, 50, 50, 0.7);
+    width: 80px;
+    height: 80px;
+    background: rgba(255, 100, 100, 0.15);
     border-radius: 50%;
     display: flex;
     justify-content: center;
@@ -86,7 +107,15 @@ canvas {
     font-size: 1.2em;
     color: white;
     pointer-events: auto;
-    border: 2px solid rgba(255, 255, 255, 0.5);
+    border: 2px solid rgba(255, 100, 100, 0.6);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 20px rgba(255,100,100,0.6);
+    transition: all 0.2s ease-in-out;
+}
+
+#shoot-btn:active {
+    transform: scale(0.9);
+    box-shadow: 0 0 10px rgba(255,100,100,1);
 }
 
 /* Game Buttons */
@@ -95,24 +124,40 @@ canvas {
     padding: 10px 20px;
     font-size: 16px;
     cursor: pointer;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    transition: all 0.3s ease-in-out;
+}
+
+#restartBtn:hover, #homeBtn:hover, #pauseBtn:hover {
+    background: rgba(255,255,255,0.2);
+    box-shadow: 0 0 10px rgba(255,255,255,0.6);
 }
 
 /* Footer */
 footer {
     margin-top: 20px;
     padding: 15px;
-    background: #111;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(6px);
     color: white;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
 }
 
 .star {
     font-size: 25px;
     cursor: pointer;
     color: gray;
+    transition: color 0.3s;
 }
 
 .star.selected {
     color: gold;
+    text-shadow: 0 0 8px rgba(255,215,0,0.8);
 }
 
 /* --- Responsive Design for Mobile --- */
@@ -128,18 +173,19 @@ footer {
     }
 
     .d-pad .arrow {
-        width: 40px;
-        height: 40px;
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
     }
 
-    #arrow-up { top: 0; left: 55px; }
-    #arrow-down { bottom: 0; left: 55px; }
-    #arrow-left { top: 55px; left: 0; }
-    #arrow-right { top: 55px; right: 0; }
+    #arrow-up { top: 0; left: 50px; }
+    #arrow-down { bottom: 0; left: 50px; }
+    #arrow-left { top: 50px; left: 0; }
+    #arrow-right { top: 50px; right: 0; }
 
     #shoot-btn {
-        width: 80px;
-        height: 80px;
+        width: 90px;
+        height: 90px;
         margin-top: 20px;
     }
 
