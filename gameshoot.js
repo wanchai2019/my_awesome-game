@@ -1,231 +1,371 @@
-/* ===============================
-   Archery Game - gameshoot.js
-   =============================== */
 
-// ===== Game Variables =====
+//--------------------- Game Variables ---------------------
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+const restartBtn = document.getElementById("restartBtn");
+const scoreText = document.getElementById("score");
 
-let score = 0;
-let level = 1;
-let highScore = localStorage.getItem("highScore") || 0;
-let isPaused = false;
-let gameOver = false;
-
-// Player
-const player = {
-  x: 100,
-  y: canvas.height / 2 - 50,
-  width: 50,
-  height: 50,
-  speed: 5
-};
-
-// Arrows
-let arrows = [];
-
-// Targets
-let targets = [];
-let targetSpawnInterval = 2000;
-let lastTargetSpawn = Date.now();
-
-// Power-up
-let powerUpActive = false;
-let powerUpTimer = 0;
-
-// ===== Load Sounds =====
 const shootSound = document.getElementById("shootSound");
 const hitSound = document.getElementById("hitSound");
+const bgMusic = document.getElementById("bgMusic");
 const pauseSound = document.getElementById("pauseSound");
 const resumeSound = document.getElementById("resumeSound");
-
-// ===== DOM Elements =====
-const scoreDisplay = document.getElementById("score");
 const pauseBtn = document.getElementById("pauseBtn");
-const restartBtn = document.getElementById("restartBtn");
-const homeBtn = document.getElementById("homeBtn");
-const shootBtn = document.getElementById("shoot-btn");
-const visitorCount = document.getElementById("visitorCount");
-const ratingStars = document.querySelectorAll(".star");
-const ratingText = document.getElementById("ratingText");
+const scremSound = document.getElementById("scremSound"); // เสียงชน
+const blinkSound = new Audio("./sound/blink.mp3");
 
-// UI Overlay for Pause
-let overlay = document.createElement("div");
-overlay.id = "pauseOverlay";
-overlay.style.position = "absolute";
-overlay.style.top = "0";
-overlay.style.left = "0";
-overlay.style.width = "100%";
-overlay.style.height = "100%";
-overlay.style.background = "rgba(0,0,0,0.4)";
-overlay.style.display = "none";
-overlay.style.alignItems = "center";
-overlay.style.justifyContent = "center";
-overlay.style.color = "white";
-overlay.style.fontSize = "3em";
-overlay.style.zIndex = "10";
-overlay.innerText = "Paused";
-document.getElementById("game-container").appendChild(overlay);
+const controls = {
+  up: document.getElementById('arrow-up'),
+  down: document.getElementById('arrow-down'),
+  left: document.getElementById('arrow-left'),
+  right: document.getElementById('arrow-right'),
+  shoot: document.getElementById('shoot-btn')
+};
 
-// Power-up UI
-let powerUpUI = document.createElement("div");
-powerUpUI.id = "powerUpUI";
-powerUpUI.style.position = "absolute";
-powerUpUI.style.top = "60px";
-powerUpUI.style.right = "20px";
-powerUpUI.style.padding = "10px 20px";
-powerUpUI.style.borderRadius = "12px";
-powerUpUI.style.background = "rgba(255,255,255,0.2)";
-powerUpUI.style.backdropFilter = "blur(10px)";
-powerUpUI.style.boxShadow = "0 0 10px rgba(255,255,255,0.6)";
-powerUpUI.style.color = "white";
-powerUpUI.style.fontWeight = "bold";
-powerUpUI.style.display = "none";
-document.getElementById("game-container").appendChild(powerUpUI);
+let arrows = [], birds = [], explosions = [], powerUps = [];
+let score = 0, lives = 3, gameOver = false, level = 1;
+let highScore = localStorage.getItem("highScore") || 0;
+let playerMove = { up:false, down:false, left:false, right:false };
+let isPaused = false;
+let animationId;
+let nextArrowIsGolden = false;
+let glowTime = 0;
+let arrowSpeed = 8;
+let tripleArrow = false;
+let playerShield = false;
 
-// ===== Controls =====
-document.getElementById("arrow-up").addEventListener("touchstart", () => (player.y -= player.speed * 10));
-document.getElementById("arrow-down").addEventListener("touchstart", () => (player.y += player.speed * 10));
-document.getElementById("arrow-left").addEventListener("touchstart", () => (player.x -= player.speed * 10));
-document.getElementById("arrow-right").addEventListener("touchstart", () => (player.x += player.speed * 10));
-shootBtn.addEventListener("touchstart", shoot);
+// Active power UI
+let activePowerUI = { fast:0, triple:0, shield:0 };
 
-// ===== Functions =====
-function shoot() {
-  if (isPaused || gameOver) return;
-  arrows.push({ x: player.x + player.width, y: player.y + player.height / 2, width: 20, height: 5, speed: 10 });
+// Power-up types
+const powerTypes = { FAST_ARROW:"fast", TRIPLE_ARROW:"triple", SHIELD:"shield" };
+
+// Player object
+const player = { x:50, y:canvas.height/2, width:45, height:80, speed:5 };
+
+// Images
+const birdImg = new Image(); birdImg.src = "./img/bird.png";
+const goldenBirdImg = new Image(); goldenBirdImg.src = "./img/golden_bird.png";
+const bossImg = new Image(); bossImg.src = "./img/boss_bird.png";
+const playerImg = new Image(); playerImg.src = "./img/archer.png";
+const arrowImg = new Image(); arrowImg.src = "./img/arrow.png";
+const shieldImg = new Image(); shieldImg.src = "./img/shieldb.png";
+
+// Power-up images
+const fastImg = new Image(); fastImg.src="./img/fast.png";
+const tripleImg = new Image(); tripleImg.src="./img/threearrow.png";
+const shieldPowerImg = new Image(); shieldPowerImg.src="./img/shieldb.png";
+
+// Explosion
+const birdExoImg = new Image(); birdExoImg.src = "./img/birdexo.png";
+
+//--------------------- Explosion Class ---------------------
+class Explosion {
+  constructor(x,y,color="orange"){
+    this.particles = [];
+    for(let i=0;i<15;i++){
+      this.particles.push({
+        x,y,
+        radius:Math.random()*3+2,
+        color,
+        speedX:(Math.random()-0.5)*6,
+        speedY:(Math.random()-0.5)*6,
+        alpha:1
+      });
+    }
+  }
+  update(){ 
+    this.particles.forEach(p=>{ p.x+=p.speedX; p.y+=p.speedY; p.alpha-=0.03; });
+    this.particles = this.particles.filter(p=>p.alpha>0);
+  }
+  draw(){ 
+    this.particles.forEach(p=>{
+      ctx.globalAlpha = p.alpha;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.radius,0,Math.PI*2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+  }
+}
+
+//--------------------- Spawn Timers ---------------------
+let lastBirdSpawn = 0;
+let birdSpawnInterval = 1500; // ms
+
+let lastPowerUpSpawn = 0;
+let powerUpSpawnInterval = 10000; // ms
+
+//--------------------- Internal Spawn Functions ---------------------
+function spawnBirdInternal(){
+  if(gameOver) return;
+  const y=Math.random()*(canvas.height-60);
+  const baseSpeed = 1+Math.random()*1.5+score*0.05;
+  const speed = Math.min(baseSpeed,10);
+  const isBoss = Math.random() < 0.3; 
+  if(isBoss && birds.filter(b=>b.isBoss).length===0){
+    birds.push({ x:canvas.width, y, startY:y, width:120, height:100, speed:2, amplitude:40, frequency:0.02, time:0, isBoss:true, hp:5 });
+  } else {
+    const isGolden = Math.random()<0.1;
+    birds.push({ x:canvas.width, y, startY:y, width:40, height:30, speed, amplitude:20+Math.random()*20, frequency:0.02+Math.random()*0.03, time:0, isGolden, isBoss:false });
+  }
+}
+
+function spawnPowerUpInternal(){
+  if(gameOver) return;
+  const typeKeys = Object.keys(powerTypes);
+  const type = powerTypes[typeKeys[Math.floor(Math.random()*typeKeys.length)]];
+  const x = canvas.width; 
+  const y = Math.random()*(canvas.height-40);
+  powerUps.push({
+    x,y,width:40,height:40,type,speed:2,
+    img: type===powerTypes.FAST_ARROW?fastImg:type===powerTypes.TRIPLE_ARROW?tripleImg:shieldPowerImg
+  });
+}
+
+//--------------------- Input ---------------------
+document.addEventListener("keydown", e=>{
+  if(gameOver || isPaused) return;
+  if(e.key==="ArrowUp") playerMove.up=true;
+  if(e.key==="ArrowDown") playerMove.down=true;
+  if(e.key==="ArrowLeft") playerMove.left=true;
+  if(e.key==="ArrowRight") playerMove.right=true;
+  if(e.key==='s'||e.key===' ') shoot();
+});
+document.addEventListener("keyup", e=>{
+  if(e.key==="ArrowUp") playerMove.up=false;
+  if(e.key==="ArrowDown") playerMove.down=false;
+  if(e.key==="ArrowLeft") playerMove.left=false;
+  if(e.key==="ArrowRight") playerMove.right=false;
+});
+
+function addControlListeners(element,direction){
+  element.addEventListener('mousedown',()=>playerMove[direction]=true);
+  element.addEventListener('touchstart',e=>{ e.preventDefault(); playerMove[direction]=true;});
+  element.addEventListener('mouseup',()=>playerMove[direction]=false);
+  element.addEventListener('mouseleave',()=>playerMove[direction]=false);
+  element.addEventListener('touchend',()=>playerMove[direction]=false);
+  element.addEventListener('touchcancel',()=>playerMove[direction]=false);
+}
+addControlListeners(controls.up,'up');
+addControlListeners(controls.down,'down');
+addControlListeners(controls.left,'left');
+addControlListeners(controls.right,'right');
+controls.shoot.addEventListener('click',shoot);
+controls.shoot.addEventListener('touchstart',e=>{ e.preventDefault(); shoot(); });
+
+restartBtn.addEventListener("click",resetGame);
+
+pauseBtn.addEventListener("click",()=>{
+  if(!isPaused){ 
+    isPaused=true; 
+    pauseSound.play(); 
+    pauseBtn.textContent="Resume"; 
+    bgMusic.pause();
+    cancelAnimationFrame(animationId);
+  } else { 
+    isPaused=false; 
+    resumeSound.play(); 
+    pauseBtn.textContent="Pause"; 
+    bgMusic.play(); 
+    gameLoop();
+  }
+});
+
+function shoot(){
+  const shots = tripleArrow ? [-10,0,10] : [0];
+  shots.forEach(offset=>{
+    arrows.push({
+      x: player.x + player.width,
+      y: player.y + player.height/2 + offset,
+      speed: arrowSpeed,
+      angle: 0,
+      isGolden: nextArrowIsGolden
+    });
+  });
   shootSound.currentTime = 0;
   shootSound.play();
+  nextArrowIsGolden = false; 
 }
 
-function spawnTarget() {
-  targets.push({
-    x: canvas.width,
-    y: Math.random() * (canvas.height - 50),
-    width: 40,
-    height: 40,
-    speed: 2 + level
-  });
+function updatePlayerPosition(){
+  if(playerMove.up) player.y-=player.speed;
+  if(playerMove.down) player.y+=player.speed;
+  if(playerMove.left) player.x-=player.speed;
+  if(playerMove.right) player.x+=player.speed;
+  if(player.x<0) player.x=0;
+  if(player.x+player.width>canvas.width) player.x=canvas.width-player.width;
+  if(player.y<0) player.y=0;
+  if(player.y+player.height>canvas.height) player.y=canvas.height-player.height;
 }
 
-function update() {
-  if (isPaused || gameOver) return;
+//--------------------- Update ---------------------
+function update(){
+  updatePlayerPosition();
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const now = Date.now();
 
-  // Draw player
-  ctx.fillStyle = "blue";
-  ctx.fillRect(player.x, player.y, player.width, player.height);
-
-  // Update arrows
-  arrows.forEach((arrow, index) => {
-    arrow.x += arrow.speed;
-    ctx.fillStyle = "yellow";
-    ctx.fillRect(arrow.x, arrow.y, arrow.width, arrow.height);
-
-    if (arrow.x > canvas.width) arrows.splice(index, 1);
-  });
-
-  // Spawn targets
-  if (Date.now() - lastTargetSpawn > targetSpawnInterval) {
-    spawnTarget();
-    lastTargetSpawn = Date.now();
+  // Bird spawn based on timestamp
+  if(now - lastBirdSpawn > birdSpawnInterval){
+    spawnBirdInternal();
+    lastBirdSpawn = now;
   }
 
-  // Update targets
-  targets.forEach((target, tIndex) => {
-    target.x -= target.speed;
-    ctx.fillStyle = "red";
-    ctx.fillRect(target.x, target.y, target.width, target.height);
+  // Power-up spawn based on timestamp
+  if(now - lastPowerUpSpawn > powerUpSpawnInterval){
+    spawnPowerUpInternal();
+    lastPowerUpSpawn = now;
+  }
 
-    if (target.x + target.width < 0) {
-      gameOver = true;
+  // Arrows
+  for(let i=arrows.length-1;i>=0;i--){ arrows[i].x += arrows[i].speed; if(arrows[i].x>canvas.width) arrows.splice(i,1); }
+
+  // Birds
+  for(let i=birds.length-1;i>=0;i--){
+    let bird = birds[i];
+    bird.x -= bird.speed;
+    bird.time++;
+    bird.y = bird.startY + Math.sin(bird.time*bird.frequency)*bird.amplitude;
+
+    // Collision bird vs player
+    if(player.x < bird.x + bird.width && player.x + player.width > bird.x &&
+       player.y < bird.y + bird.height && player.y + player.height > bird.y){
+      
+      if(!playerShield) { lives--; if(lives<=0){ gameOver=true; restartBtn.style.display="inline-block"; bgMusic.pause(); } }
+      scremSound.currentTime=0; scremSound.play();
+      explosions.push({ img: birdExoImg, x:player.x-20, y:player.y-20, width:player.width+40, height:player.height+40, alpha:1 });
+      birds.splice(i,1); continue;
     }
+  }
 
-    // Collision detection
-    arrows.forEach((arrow, aIndex) => {
-      if (
-        arrow.x < target.x + target.width &&
-        arrow.x + arrow.width > target.x &&
-        arrow.y < target.y + target.height &&
-        arrow.y + arrow.height > target.y
-      ) {
-        targets.splice(tIndex, 1);
-        arrows.splice(aIndex, 1);
-        score += 10;
-        hitSound.currentTime = 0;
-        hitSound.play();
+  // Arrows vs birds
+  for(let ai=arrows.length-1; ai>=0; ai--){
+    let arrow = arrows[ai];
+    for(let bi=birds.length-1; bi>=0; bi--){
+      let bird = birds[bi];
+      if(arrow.x < bird.x+bird.width && arrow.x+25>bird.x && arrow.y<bird.y+bird.height && arrow.y+5>bird.y){
+        arrows.splice(ai,1);
+        if(bird.isBoss){
+          bird.hp -= arrow.isGolden?2:1;
+          explosions.push(new Explosion(bird.x+bird.width/2,bird.y+bird.height/2,"red"));
+          if(bird.hp<=0){ birds.splice(bi,1); score += arrow.isGolden?20:10; }
+        } else {
+          explosions.push(new Explosion(bird.x+bird.width/2,bird.y+bird.height/2,bird.isGolden?"gold":(arrow.isGolden?"yellow":"orange")));
+          birds.splice(bi,1); score += bird.isGolden?5:(arrow.isGolden?2:1);
+          if(bird.isGolden) nextArrowIsGolden = true;
+        }
+        level=Math.floor(score/10)+1;
+        if(score>highScore){ highScore=score; localStorage.setItem("highScore",highScore);}
+        scoreText.textContent=`Score: ${score} | Level: ${level} | High Score: ${highScore}`;
+        hitSound.currentTime=0; hitSound.play();
+        break;
       }
-    });
-  });
-
-  // Power-up Timer
-  if (powerUpActive) {
-    powerUpTimer -= 1;
-    powerUpUI.style.display = "block";
-    powerUpUI.innerText = `⚡ Power Up: ${Math.ceil(powerUpTimer / 60)}s`;
-    if (powerUpTimer <= 0) {
-      powerUpActive = false;
-      powerUpUI.style.display = "none";
     }
   }
 
-  // Update score
-  scoreDisplay.textContent = `Score: ${score} | Level: ${level} | High Score: ${highScore}`;
+  // Power-Ups
+  for(let i=powerUps.length-1;i>=0;i--){
+    let pu = powerUps[i];
+    pu.x -= pu.speed;
+    if(pu.x+pu.width<0){ powerUps.splice(i,1); continue; }
 
-  requestAnimationFrame(update);
-}
-
-// ===== Pause/Resume =====
-pauseBtn.addEventListener("click", () => {
-  isPaused = !isPaused;
-  if (isPaused) {
-    pauseSound.play();
-    overlay.style.display = "flex";
-  } else {
-    resumeSound.play();
-    overlay.style.display = "none";
-    update();
+    if(player.x < pu.x+pu.width && player.x+player.width>pu.x && player.y < pu.y+pu.height && player.y+player.height>pu.y){
+      powerUps.splice(i,1);
+      blinkSound.currentTime=0; blinkSound.play();
+      if(pu.type===powerTypes.FAST_ARROW){ arrowSpeed=12; activePowerUI.fast=5; setTimeout(()=>{arrowSpeed=8; activePowerUI.fast=0;},5000);}
+      if(pu.type===powerTypes.TRIPLE_ARROW){ tripleArrow=true; activePowerUI.triple=5; setTimeout(()=>{tripleArrow=false; activePowerUI.triple=0;},5000);}
+      if(pu.type===powerTypes.SHIELD){ playerShield=true; activePowerUI.shield=5; setTimeout(()=>{playerShield=false; activePowerUI.shield=0;},5000);}
+    }
   }
-});
 
-// ===== Restart =====
-restartBtn.addEventListener("click", () => {
-  score = 0;
-  level = 1;
-  arrows = [];
-  targets = [];
-  gameOver = false;
-  update();
-});
+  // Explosions
+  explosions.forEach(ex=>{ if(ex instanceof Explosion) ex.update(); });
 
-// ===== Home (reset score + reload) =====
-homeBtn.addEventListener("click", () => {
-  localStorage.setItem("highScore", highScore);
-  window.location.reload();
-});
-
-// ===== Visitor Counter =====
-function updateVisitorCount() {
-  let count = localStorage.getItem("visitorCount") || 0;
-  count++;
-  localStorage.setItem("visitorCount", count);
-  visitorCount.textContent = `👥 Visitors: ${count}`;
+  // Decrement active power timers
+  Object.keys(activePowerUI).forEach(key=>{ if(activePowerUI[key]>0) activePowerUI[key]-=1/60; });
 }
-updateVisitorCount();
 
-// ===== Rating System =====
-ratingStars.forEach(star => {
-  star.addEventListener("click", function () {
-    let value = this.getAttribute("data-value");
-    ratingText.textContent = `You rated: ${value} ★`;
-    ratingStars.forEach(s => {
-      s.style.color = s.getAttribute("data-value") <= value ? "gold" : "white";
-      s.style.transform = s.getAttribute("data-value") <= value ? "scale(1.2)" : "scale(1)";
-      s.style.transition = "0.3s ease";
-    });
+//--------------------- Draw ---------------------
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // Player
+  ctx.drawImage(playerImg,player.x,player.y,player.width,player.height);
+  if(playerShield) ctx.drawImage(shieldImg,player.x-5,player.y-5,player.width+10,player.height+10);
+
+  glowTime += 0.1;
+
+  // Arrows
+  arrows.forEach(arrow=>{
+    ctx.save(); ctx.translate(arrow.x,arrow.y);
+    if(arrow.isGolden){ let glow=20+10*Math.sin(glowTime*5); ctx.shadowBlur=glow; ctx.shadowColor="gold"; }
+    else{ ctx.shadowBlur=15; ctx.shadowColor="red"; }
+    ctx.drawImage(arrowImg,-12.5,-5,25,10);
+    ctx.restore();
   });
-});
 
-// ===== Start Game =====
-update();
+  // Birds
+  birds.forEach(bird=>{
+    if(bird.isBoss){
+      ctx.drawImage(bossImg,bird.x,bird.y,bird.width,bird.height);
+      ctx.fillStyle="gray"; ctx.fillRect(bird.x,bird.y-10,bird.width,6);
+      ctx.fillStyle="lime"; ctx.fillRect(bird.x,bird.y-10,(bird.hp/5)*bird.width,6);
+      ctx.strokeStyle="black"; ctx.strokeRect(bird.x,bird.y-10,bird.width,6);
+    } else if(bird.isGolden) ctx.drawImage(goldenBirdImg,bird.x,bird.y,bird.width,bird.height);
+    else ctx.drawImage(birdImg,bird.x,bird.y,bird.width,bird.height);
+  });
+
+  // Power-Ups
+  powerUps.forEach(pu=>{ ctx.drawImage(pu.img, pu.x, pu.y, pu.width, pu.height); });
+
+  // Explosions
+  explosions.forEach((ex,index)=>{
+    if(ex instanceof Explosion) ex.draw();
+    else{
+      ctx.globalAlpha=ex.alpha;
+      ctx.drawImage(ex.img, ex.x, ex.y, ex.width, ex.height);
+      ctx.globalAlpha=1;
+      ex.alpha-=0.05; if(ex.alpha<=0) explosions.splice(index,1);
+    }
+  });
+
+  // Life
+  ctx.fillStyle="white"; ctx.strokeStyle="black"; ctx.lineWidth=2;
+  ctx.font="20px sans-serif";
+  ctx.strokeText("life: "+"❤️".repeat(lives),canvas.width-160,30);
+  ctx.fillText("life: "+"❤️".repeat(lives),canvas.width-160,30);
+
+  // Active Power UI
+  ctx.font="16px sans-serif";
+  let xStart = 20;
+  if(activePowerUI.fast>0){ ctx.drawImage(fastImg,xStart,canvas.height-50,30,30); ctx.fillText(Math.ceil(activePowerUI.fast),xStart+10,canvas.height-55); xStart+=50; }
+  if(activePowerUI.triple>0){ ctx.drawImage(tripleImg,xStart,canvas.height-50,30,30); ctx.fillText(Math.ceil(activePowerUI.triple),xStart+10,canvas.height-55); xStart+=50; }
+  if(activePowerUI.shield>0){ ctx.drawImage(shieldPowerImg,xStart,canvas.height-50,30,30); ctx.fillText(Math.ceil(activePowerUI.shield),xStart+10,canvas.height-55); xStart+=50; }
+}
+
+//--------------------- Game Loop ---------------------
+function gameLoop(){
+  if(gameOver || isPaused) return;
+  update(); draw();
+  animationId=requestAnimationFrame(gameLoop);
+}
+
+//--------------------- Reset Game ---------------------
+function resetGame(){
+  arrows=[]; birds=[]; explosions=[]; powerUps=[];
+  score=0; lives=3; level=1; gameOver=false; isPaused=false; nextArrowIsGolden=false;
+  arrowSpeed=8; tripleArrow=false; playerShield=false;
+  activePowerUI = { fast:0, triple:0, shield:0 };
+  restartBtn.style.display="none"; player.x=50; player.y=canvas.height/2;
+  scoreText.textContent=`Score: 0 | Level: 1 | High Score: ${highScore}`;
+  bgMusic.currentTime=0; bgMusic.play().catch(()=>{});
+
+  lastBirdSpawn = Date.now();
+  lastPowerUpSpawn = Date.now();
+
+  cancelAnimationFrame(animationId);
+  gameLoop();
+}
+
+resetGame();
