@@ -2,16 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Archery Game</title>
-<link rel="stylesheet" href="shootstye.css">
+<link rel="stylesheet" href="shootstyle.css">
 </head>
 <body>
 <div id="game-container">
+  <!-- Top Bar -->
   <div id="top-bar">
     <span id="score">Score: 0 | Level: 1 | High Score: 0</span>
   </div>
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+  <!-- Game Canvas -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Controls -->
   <div class="controls-container">
     <div class="d-pad">
       <div id="arrow-up" class="arrow">▲</div>
@@ -21,13 +26,18 @@
     </div>
     <div id="shoot-btn">ยิง</div>
   </div>
-  <button id="pauseBtn">Pause</button>
-  <button id="restartBtn" style="display:none">Play Again</button>
-  <button id="homeBtn">Home</button>
+
+  <!-- Game Buttons -->
+  <div style="position:absolute; top:60px; left:5%; display:flex; gap:10px;">
+    <button id="pauseBtn">Pause</button>
+    <button id="restartBtn" style="display:none">Play Again</button>
+    <button id="homeBtn" style="display:none">Home</button>
+  </div>
 </div>
 
+<!-- Footer & Rating -->
 <footer>
-  <p id="visitorCount"></p>
+  <p id="visitorCount">Visitors: 0</p>
   <div id="rating">
     <span class="star" data-value="1">★</span>
     <span class="star" data-value="2">★</span>
@@ -38,6 +48,11 @@
   </div>
 </footer>
 
+<!-- Power-up Timer -->
+<div id="powerup-timer">
+  <div id="powerup-fill"></div>
+</div>
+
 <!-- Audio -->
 <audio id="bgMusic" src="sound/bgnok.mp3" loop></audio>
 <audio id="shootSound" src="sound/shoot.mp3"></audio>
@@ -47,6 +62,8 @@
 <audio id="scremSound" src="sound/scream.mp3"></audio>
 <audio id="blinkSound" src="sound/blink.mp3"></audio>
 
+<!-- Game JS -->
 <script src="gameshoot.js"></script>
+
 </body>
 </html>
