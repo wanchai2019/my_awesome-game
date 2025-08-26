@@ -1,0 +1,235 @@
+/* ===========================
+   Global Glass-Style & Body
+=========================== */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+  color: #fff;
+  overflow: hidden;
+}
+
+#game-container {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ===========================
+   Top Bar (Score / Level)
+=========================== */
+#top-bar {
+  width: 95%;
+  max-width: 480px;
+  padding: 10px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+  font-size: 1.1em;
+  font-weight: bold;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  border-radius: 16px;
+  margin-top: 5px;
+}
+
+/* ===========================
+   Canvas
+=========================== */
+#gameCanvas {
+  width: 95vw;
+  height: calc(95vh - 120px);
+  max-width: 480px;
+  max-height: 854px;
+  border: 2px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.25);
+  border-radius: 16px;
+  backdrop-filter: blur(6px);
+  margin: 10px 0;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+}
+
+/* ===========================
+   Controls Container
+=========================== */
+.controls-container {
+  position: absolute;
+  bottom: 5%;
+  width: 100%;
+  height: 180px;
+  pointer-events: none;
+}
+
+/* D-Pad on Left */
+.d-pad {
+  position: absolute;
+  bottom: 5%;
+  left: 5%;
+  width: 20vw;
+  height: 20vw;
+  display: grid;
+  grid-template-areas:
+    ". up ."
+    "left . right"
+    ". down .";
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  pointer-events: auto;
+}
+.arrow {
+  background: rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 2.5vw;
+  color: #fff;
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+.arrow:hover { background: rgba(255,255,255,0.25); transform: scale(1.1); }
+.arrow:active { transform: scale(0.9); box-shadow: 0 0 10px rgba(255,255,255,0.7) inset; }
+
+#arrow-up   { grid-area: up; }
+#arrow-down { grid-area: down; }
+#arrow-left { grid-area: left; }
+#arrow-right{ grid-area: right; }
+
+/* Shoot Button on Right */
+#shoot-btn {
+  position: absolute;
+  bottom: 5%;
+  right: 5%;
+  width: 18vw;
+  height: 18vw;
+  background: rgba(255, 100, 100, 0.25);
+  border: 2px solid rgba(255, 100, 100, 0.8);
+  border-radius: 50%;
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  font-size: 1.5em;
+  color: white;
+  box-shadow: 0 0 20px rgba(255, 100, 100, 0.5);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.2s ease-in-out;
+}
+#shoot-btn:active { transform: scale(0.9); box-shadow: 0 0 10px rgba(255,100,100,1); }
+
+/* ===========================
+   Game Buttons (Restart / Pause)
+=========================== */
+button {
+  margin: 5px;
+  padding: 10px 20px;
+  background: rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.3);
+  color: #fff;
+  border-radius: 12px;
+  font-weight: bold;
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+button:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+#pauseBtn.active {
+  background: rgba(255,215,0,0.3);
+  border-color: gold;
+  box-shadow: 0 0 15px gold;
+}
+
+/* ===========================
+   Footer & Visitor Counter
+=========================== */
+footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  text-align: center;
+  padding: 12px;
+  background: rgba(0,0,0,0.25);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255,255,255,0.2);
+}
+#visitorCount {
+  font-size: 0.9em;
+  margin: 5px 0;
+  background: rgba(255,255,255,0.15);
+  padding: 6px 14px;
+  border-radius: 20px;
+  backdrop-filter: blur(6px);
+  display: inline-block;
+}
+
+/* ===========================
+   Rating Stars
+=========================== */
+#rating { margin-top: 10px; }
+.star {
+  font-size: 1.5em;
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.star:hover { transform: scale(1.3); color: gold; }
+.star.selected { color: gold; text-shadow: 0 0 12px gold; }
+
+/* ===========================
+   Power-up Timer
+=========================== */
+#powerup-timer {
+  position: absolute;
+  top: 60px;
+  right: 5%;
+  width: 35vw;
+  max-width: 150px;
+  height: 20px;
+  background: rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 20px;
+  overflow: hidden;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  display: none;
+}
+#powerup-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #00c6ff, #0072ff);
+  transition: width 0.1s linear;
+  border-radius: 20px;
+}
+
+/* ===========================
+   Responsive Adjustments
+=========================== */
+@media (max-width: 480px) {
+  #top-bar { font-size: 1em; }
+  .arrow { font-size: 4vw; }
+  #shoot-btn { font-size: 1.2em; width: 20vw; height: 20vw; }
+  #powerup-timer { width: 40vw; }
+  footer { font-size: 0.8em; }
+}
+
+/* ===========================
+   Glow effect for Power-ups
+=========================== */
+.power-glow {
+  animation: glow 1s infinite alternate;
+}
+@keyframes glow {
+  0% { box-shadow: 0 0 5px rgba(255,255,0,0.5); }
+  50% { box-shadow: 0 0 15px rgba(255,255,0,0.9); }
+  100% { box-shadow: 0 0 5px rgba(255,255,0,0.5); }
+}
