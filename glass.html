@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Glass Shooter</title>
+  <link rel="stylesheet" href="glassstyle.css" />
+</head>
+<body>
+  <div id="topBar">
+    <div class="left">
+      <h2>Glass Shooter</h2>
+      <div class="sub">Visitors: <span id="visitorCount">0</span></div>
+    </div>
+    <div class="right">
+      <div class="hud">
+        <span>Score: <strong id="score">0</strong></span>
+        <span>Best: <strong id="bestScore">0</strong></span>
+        <span>Lives: <strong id="lives">3</strong></span>
+      </div>
+      <div id="powerupBadge" class="badge hidden" title="Rapid Fire Active">
+        ⚡ Rapid Fire
+        <div class="badge-progress"><div id="powerupProgress"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas" width="900" height="550"></canvas>
+
+  <div id="controlsRow">
+    <div id="mobile-controls">
+      <div id="upBtn" class="arrow">▲</div>
+      <div id="downBtn" class="arrow">▼</div>
+      <div id="leftBtn" class="arrow">◀</div>
+      <div id="rightBtn" class="arrow">▶</div>
+    </div>
+    <div class="actions">
+      <button id="fireBtn" aria-label="Fire">🔥 Fire</button>
+      <button id="pauseBtn" aria-label="Pause/Resume">⏸ Pause</button>
+    </div>
+  </div>
+
+  <!-- Overlay (Pause / Game Over / Home) -->
+  <div id="overlay" class="hidden">
+    <div class="overlay-card">
+      <h1 id="overlayTitle">Paused</h1>
+      <p id="overlayDesc">กด Resume เพื่อเล่นต่อ</p>
+      <div class="overlay-actions">
+        <button id="resumeBtn">▶ Resume</button>
+        <!-- ปุ่ม Restart & Home จะถูกสร้างอัตโนมัติเมื่อ Game Over -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Stars -->
+  <footer>
+    <div class="rate">
+      <span class="star" data-value="1">★</span>
+      <span class="star" data-value="2">★</span>
+      <span class="star" data-value="3">★</span>
+      <span class="star" data-value="4">★</span>
+      <span class="star" data-value="5">★</span>
+    </div>
+  </footer>
+
+  <script src="glassgame.js"></script>
+</body>
+</html>
