@@ -2,73 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>My Awesome Game</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎮 รวมเกมสนุกเล่นฟรี</title>
   <link rel="stylesheet" href="style.css" />
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      background: #f5f5f5;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
-    .container {
-      flex: 1;
-      padding: 20px;
-      text-align: center;
-    }
-    .game-grid {
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 20px;
-      margin-top: 20px;
-    }
-    .game-item {
-      background: #fff;
-      padding: 15px;
-      border-radius: 10px;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.1);
-      width: 200px;
-    }
-    .game-item img {
-      width: 100%;
-      border-radius: 8px;
-    }
-    .button {
-      display: block;
-      margin-top: 10px;
-      padding: 10px;
-      background: #0077cc;
-      color: #fff;
-      text-decoration: none;
-      border-radius: 6px;
-    }
-    .button:hover {
-      background: #005fa3;
-    }
-    footer {
-      background: #222;
-      color: #fff;
-      text-align: center;
-      padding: 15px 10px;
-      margin-top: auto;
-    }
-    .stars {
-      display: inline-flex;
-      gap: 5px;
-      cursor: pointer;
-    }
-    .stars span {
-      font-size: 24px;
-      color: #888;
-      transition: color 0.2s;
-    }
-    .stars span.active {
-      color: gold;
-    }
-  </style>
 </head>
 <body class="home">
   <div class="container">
@@ -80,8 +16,8 @@
         <img src="./images/snake-thumb.png" alt="เกมงู">
         <a class="button" href="snake.html">A game where a snake comes out!!</a>
       </div>
-      
-       <div class="game-item">
+
+      <div class="game-item">
         <img src="./images/glass.png" alt="glass">
         <a class="button" href="glass.html">Glass Shooter</a>
       </div>
@@ -92,13 +28,12 @@
       </div>
 
       <div class="game-item">
-        <img src="./images/explo.jpg" alt="Exploer the Milky Way">
+        <img src="./images/explo.jpg" alt="Explore the Milky Way">
         <a class="button" href="https://wanchai2019.github.io/">Explore the Milky Way</a>
       </div>
     </div>
   </div>
 
-  <!-- Footer -->
   <footer>
     <p>👀 Visitors: <span id="visitorCount">0</span></p>
     <p>⭐ Rate this site:</p>
@@ -112,13 +47,13 @@
   </footer>
 
   <script>
-    // นับจำนวนผู้เข้าชม (ใช้ localStorage จำลอง)😊
+    // นับจำนวนผู้เข้าชม (จำลองด้วย localStorage)
     let count = localStorage.getItem("visitorCount") || 0;
     count++;
     localStorage.setItem("visitorCount", count);
     document.getElementById("visitorCount").textContent = count;
 
-    // ระบบให้คะแนน stars
+    // ระบบให้คะแนนดาว
     const stars = document.querySelectorAll("#starRating span");
     let savedRating = localStorage.getItem("siteRating") || 0;
 
@@ -140,4 +75,3 @@
   </script>
 </body>
 </html>
-
