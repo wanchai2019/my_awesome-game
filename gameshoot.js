@@ -474,7 +474,7 @@ function resetGame(){
     activePowerUI = { fast:0, triple:0, shield:0 };
     
     restartBtn.style.display = "none"; // ซ่อนปุ่ม Play Again
-    homeBtn.style.display = "none";    // ซ่อนปุ่ม Home
+    homeBtn.style.display = "inline-block";    // show Home
 
     player.x = 50; 
     player.y = canvas.height/2;
@@ -525,3 +525,4 @@ resizeCanvas();
 
 //--------------------- Start Game ---------------------
 resetGame();
+
